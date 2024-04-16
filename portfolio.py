@@ -31,17 +31,32 @@ class Asset:
 
 class Portfolio:
     def __init__(self):
-        self.transactions = pd.DataFrame(columns = ['date_time', 'ticker', 'change'])
+        self.transactions = pd.DataFrame(columns = ['date_time', 'ticker', 'change','note'])
         self.value = pd.DataFrame(columns = ['date_time', 'value'])
         self.value.set_index('date_time')
 
-    def do_transaction(self, ticker:str, qty:float, transaction_date = date.today()):
+    def do_transaction(self, ticker:str, qty:float, transaction_date = date.today(), note = ''):
         new_transaction = pd.DataFrame({'date_time': transaction_date,
                                         'ticker': ticker,
-                                        'change':qty}, index=[0])
+                                        'change':qty,
+                                        'note':note}, index=[0])
         self.transactions = pd.concat([self.transactions, new_transaction], ignore_index=True)
 
-    def get_value(self, on_date: date):
+    def get_positions(self, on_date = date.today()):
+        time_mask = (self.transactions['date_time'] <= on_date)
+        positions = self.transactions[time_mask][['ticker', 'change']]\
+                        .groupby(['ticker'])\
+                        .agg({'change':'sum'})\
+                        .reset_index()
+        positions.columns = ['ticker', 'position_size']
+        positions['ticker'] = positions['ticker'].astype(str)
+        positions['position_value'] = positions['ticker'].apply(
+                                                lambda x: Asset.asset_dict[x].price_on_date(on_date)
+                                                )
+        positions['position_value'] = positions['position_value']*positions['position_size']
+        return positions
+
+    def get_value(self, on_date = date.today()):
         self.update_value()
         mask = (self.value['date_time'] == on_date)
         return self.value[mask]['value']
@@ -52,14 +67,7 @@ class Portfolio:
         date_to_add = date.fromisoformat('2023-11-30')
         oldest_transaction = min(self.transactions['date_time'])
         while date_to_add >= oldest_transaction:
-            time_mask = (self.transactions['date_time'] <= date_to_add)
-            composition_at_date = self.transactions[time_mask][['ticker', 'change']].groupby(['ticker']).agg({'change':'sum'}).reset_index()
-            composition_at_date.columns = ['ticker', 'position_size']
-            composition_at_date['ticker'] = composition_at_date['ticker'].astype(str)
-            composition_at_date['position_value'] = composition_at_date['ticker'].apply(
-                                                    lambda x: Asset.asset_dict[x].price_on_date(date_to_add)
-                                                    )
-            composition_at_date['position_value'] = composition_at_date['position_value']*composition_at_date['position_size']
+            composition_at_date = self.get_positions(date_to_add)
             value_to_add = composition_at_date.position_value.sum()
             df_to_add = pd.DataFrame({'value': value_to_add, 'date_time': date_to_add}, index=[0])
             self.value = pd.concat([self.value, df_to_add], ignore_index=True)
