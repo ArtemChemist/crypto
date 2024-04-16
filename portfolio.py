@@ -1,9 +1,13 @@
 import pandas as pd
 import tensorflow as tf
+from datetime import date
 
 class Asset:
+    asset_list = {}
+
     def __init__(self, ticker):
         self.ticker = ticker
+        Asset.asset_list[ticker] = self
         self.history = pd.DataFrame(columns = ['date_time', 'high', 'low', 'open', 'close', 'volume'])
     
     def latest_price(self):
@@ -23,16 +27,21 @@ class Asset:
 
 class Portfolio:
     def __init__(self):
-        self.assets = {}
-        self.value = 0
+        self.transactions = pd.DataFrame(columns = ['date_time', 'ticker', 'change'])
+        self.value = pd.DataFrame(columns = ['date_time', 'value'])
+        self.value.set_index('date_time')
 
     def add_asset(self, asset: Asset, qty:float):
         self.assets[asset] = qty
 
-    def get_value(self):
-        self.value = sum([asset.latest_price() * qty for asset, qty in self.assets.items()])
-        return self.value
+    def get_value(self, date: date):
+        return self.value.iloc[date].value
     
+    def update_value(self):
+        for date in self.value.index:
+            time_mask = (self.transactions['date_time'] <= date)
+            composition_at_thetime = self.transactions[time_mask][['ticker', 'change']].groupby(['ticker']).agg({'change':sum})
+            #composition_at_thetime
 class Strategy:
 
     def __init__(self, model):
