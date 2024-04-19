@@ -20,8 +20,7 @@ class Asset:
         '''
         incoming_df: the dataframe with the new historical records
         '''
-        self.history.update(incoming_df)
-        self.history.sort_values('date_time', ascending=True)
+        self.history = pd.concat([self.history, incoming_df]).groupby(level=0).last()
 
 class Portfolio:
     def __init__(self, origination_date = date.fromisoformat('2000-01-01'), initial_deposit = 0):
