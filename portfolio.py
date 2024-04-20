@@ -1,6 +1,7 @@
 import pandas as pd
 import tensorflow as tf
-from datetime import date, timedelta
+from pandas import Timestamp as tmpstemp
+from pandas import Timedelta as tmpdelta
 
 class Asset:
     asset_dict = {}
@@ -8,13 +9,20 @@ class Asset:
     def __init__(self, ticker):
         self.ticker = ticker
         Asset.asset_dict[ticker] = self
-        self.history = pd.DataFrame(columns = ['high', 'low', 'open', 'close', 'volume'], index = pd.Index([], name = 'date_time'))
-    
+        self.history = pd.DataFrame(columns = ['high', 'low', 'open', 'close', 'volume'],
+                                    index = pd.DatetimeIndex([], name = 'date_time'))
     def latest_price(self):
         return self.price_on_date()
     
-    def price_on_date(self, on_date = date.today):
-        return self.history['close'].loc[on_date]
+    def price_on_date(self, on_date = tmpstemp.today):
+        '''
+        Returns the prcei on the date that is the closest to the supplied date
+        '''
+        matches = self.history.index.get_indexer([on_date], method='nearest')
+        matched_date = self.history.index[matches[0]]
+        if ((matched_date - on_date) > tmpdelta(days=1))  | ((on_date - matched_date) > tmpdelta(days=1)):
+            print(f'Reported price is {on_date- matched_date} old')
+        return self.history['close'].loc[matched_date]
     
     def update_history(self, incoming_df:pd.DataFrame):
         '''
@@ -23,13 +31,13 @@ class Asset:
         self.history = pd.concat([self.history, incoming_df]).groupby(level=0).last()
 
 class Portfolio:
-    def __init__(self, origination_date = date.fromisoformat('2000-01-01'), initial_deposit = 0):
+    def __init__(self, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
         idx  = pd.MultiIndex(levels=[[],[]],
                           codes=[[],[]],
                           names=[u'date_time', u'ticker'])
         my_columns = [u'change', u'note']
         self.transactions  = pd.DataFrame(index=idx, columns=my_columns)
-        self.value = pd.DataFrame(columns = ['value'], index = pd.Index([], name='date_time'))
+        self.value = pd.DataFrame(columns = ['value'], index = pd.DatetimeIndex([], name = 'date_time'))
         self.orig_date = origination_date
         self.update_transactions(transaction_date = origination_date,
                                 ticker = 'USD',
@@ -37,10 +45,10 @@ class Portfolio:
                                 note = 'Initial deposit')
 
 
-    def update_transactions(self, ticker:str, qty:float, transaction_date = date.today(), note = ''):
+    def update_transactions(self, ticker:str, qty:float, transaction_date = tmpstemp.today(), note = ''):
         self.transactions.loc[(transaction_date,ticker),:] = [qty, note]
 
-    def get_positions(self, on_date = date.today()):
+    def get_positions(self, on_date = tmpstemp.today()):
         '''
         Returns portfolio composition on the specified date
         '''
@@ -59,18 +67,18 @@ class Portfolio:
         positions['position_value'] = positions['position_value']*positions['position_size']
         return positions
 
-    def get_value(self, on_date = date.today()):
+    def get_value(self, on_date = tmpstemp.today()):
         self.update_value()
         return self.value.loc[on_date]
     
     def update_value(self):
         #self.value.drop(self.value.index, inplace=True)
-        date_to_add = date.fromisoformat('2023-11-30')
+        date_to_add = tmpstemp.fromisoformat('2023-11-30')
         while date_to_add >= self.orig_date:
             composition_at_date = self.get_positions(date_to_add).dropna()
             value_to_add = composition_at_date.position_value.sum()
             self.value.loc[date_to_add] = value_to_add
-            date_to_add = date_to_add - timedelta(days=1)
+            date_to_add = date_to_add - tmpdelta(days=1)
 
 class Strategy:
 
