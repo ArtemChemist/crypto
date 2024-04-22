@@ -21,7 +21,7 @@ class Asset:
         matches = self.history.index.get_indexer([on_date], method='nearest')
         matched_date = self.history.index[matches[0]]
         if ((matched_date - on_date) > tmpdelta(days=1))  | ((on_date - matched_date) > tmpdelta(days=1)):
-            print(f'Reported price is {on_date- matched_date} old')
+            print(f'Reported {self.ticker} price is {on_date- matched_date} old')
         return self.history['close'].loc[matched_date]
     
     def update_history(self, incoming_df:pd.DataFrame):
@@ -67,13 +67,18 @@ class Portfolio:
         positions['position_value'] = positions['position_value']*positions['position_size']
         return positions
 
-    def get_value(self, on_date = tmpstemp.today()):
-        self.update_value()
-        return self.value.loc[on_date]
+    def get_value(self, on_date = tmpstemp.today(), update = False):
+        if update:
+            self.update_value(up_to = on_date)
+        matches = self.value.index.get_indexer([on_date], method='nearest')
+        matched_date = self.value.index[matches[0]]
+        if ((matched_date - on_date) > tmpdelta(days=1))  | ((on_date - matched_date) > tmpdelta(days=1)):
+            print(f'Reported {self.ticker} value is {on_date- matched_date} old')
+        return self.value.loc[matched_date]
     
-    def update_value(self):
+    def update_value(self, up_to = tmpstemp.fromisoformat('2023-11-30')):
         #self.value.drop(self.value.index, inplace=True)
-        date_to_add = tmpstemp.fromisoformat('2023-11-30')
+        date_to_add = up_to
         while date_to_add >= self.orig_date:
             composition_at_date = self.get_positions(date_to_add).dropna()
             value_to_add = composition_at_date.position_value.sum()
