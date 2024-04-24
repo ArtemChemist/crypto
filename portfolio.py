@@ -122,14 +122,17 @@ class Portfolio:
         # Filter the df with this mask, group by ticker
         positions = self.transactions[time_mask]['change'].groupby(level = 'ticker').sum()
         # Convert resulting Series to DataFrame
-        positions = pd.DataFrame(positions, index=pd.Index(positions.index, name = 'ticker'))
-        positions.columns = ['position_size']
+        positions = pd.DataFrame(data = positions,
+                                columns = ['position_size'],
+                                index=pd.Index(positions.index, name = 'ticker'))
         
         # Add the value in USD by multiplying on the asset price at this date
         positions['position_value'] = positions.index.to_series().apply(
                                                 lambda x: Asset.asset_dict[str(x)].price_on_date(on_date)
                                                 )
         positions['position_value'] = positions['position_value']*positions['position_size']
+        total_value = positions['position_value'].sum()
+        positions['allocations'] = positions['position_value']/total_value
         return positions
 
     def get_value(self, on_date = tmpstemp.today(), update = False):
