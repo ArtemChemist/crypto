@@ -156,6 +156,7 @@ class Portfolio:
             value_to_add = composition_at_date.position_value.sum()
             self.value.loc[date_to_add] = value_to_add
             date_to_add = date_to_add - tmpdelta(days=1)
+        self.value.sort_index(inplace=True)
 
 class Strategy:
 
@@ -208,10 +209,11 @@ class Strategy:
         '''
         prediction_prices = []
         pred_prices_idx = []
-        for tomorrow_date in data_to_process.index[(self.input_span-1):]:
+        for today in data_to_process.index[(self.input_span-1):]:
             try:
+                tomorrow_date = today + tmpdelta(days=1)
                 # range(tomorrow - 14: tomorrow) is 15 day-log timespan that end today!
-                current_day_input = data_to_process.loc[tomorrow_date - tmpdelta(days=self.input_span-1):tomorrow_date]  # Data slice to be used in this step
+                current_day_input = data_to_process.loc[today - tmpdelta(days=self.input_span-1):today]  # Data slice to be used in this step
                 model_input = self.scaler.transform(np.array(current_day_input.values).reshape(-1,1) )     # Data scaled as input for the model
                 model_input = np.array(model_input).reshape(-1, model_input.shape[0], model_input.shape[1])                           # Data shaped as input for the model
                 tmr_BTC_price = self.model.predict(model_input,verbose = 0)                                # Predict
@@ -220,8 +222,8 @@ class Strategy:
                 pred_prices_idx.append(tomorrow_date)
 
                 # Format string for output
-                today_day = tomorrow_date-tmpdelta(days=1)                      # Get date we are predictig for 
-                today_BTC_price = data_to_process.loc[today_day]                                             # Get current asset price 
+                # Get date we are predictig for 
+                today_BTC_price = data_to_process.loc[today]                                             # Get current asset price 
                 # print(f'Today ({today_day}):{today_BTC_price}, predicted for {tomorrow_date}: {tmr_BTC_price}')
             except Exception as e:
                 print(e)
@@ -233,8 +235,8 @@ class Strategy:
         Given the data predict for the next timepoint
         '''
         tomorrow_date = data_to_process.index[-1]+tmpdelta(days=1)
-        today_day = data_to_process.index[-1]
-        today_BTC_price = data_to_process.loc[today_day] 
+        #today_day = data_to_process.index[-1]
+        #today_BTC_price = data_to_process.loc[today_day] 
         try:
             model_input = self.scaler.transform(np.array(data_to_process.values).reshape(-1,1) )     # Data scaled as input for the model
             model_input = np.array(model_input).reshape(-1, model_input.shape[0], model_input.shape[1])# Data shaped as input for the model
