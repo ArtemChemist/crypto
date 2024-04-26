@@ -158,17 +158,45 @@ class Portfolio:
             date_to_add = date_to_add - tmpdelta(days=1)
         self.value.sort_index(inplace=True)
 
-class Strategy:
+class BaseStrategy:
 
     def __init__(self, model_input_length = 15):
         self.frequency = 1
         self.model = Model()
         self.input_span = model_input_length
+        self.fees = 0.006
         self.scaler = MinMaxScaler(feature_range=(0,1))
+    
+    def train_val_split_scale(self, df, ratio = 0.7):
+        len_train = int(ratio*len(df))
+        X = []
+        y = []
+        index = []
+        scaled_data = self.scaler.fit_transform(np.array(df['close'].values).reshape(-1,1) )
+        for x in range(self.input_span, len(df)):
+            X.append(scaled_data[x-self.input_span:x, 0])
+            y.append(scaled_data[x,0])
+            index.append(df.index[(x-1)])
+        X, y = (np.array(X), np.array(y))
+        X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+        train_idx = df.index[self.input_span:len_train]
+        val_index = df.index[len_train:]
+        #print(f'from {train_idx[0]} to {train_idx[-1]}')
+        return X[0:len_train-self.input_span,:,:],\
+                y[0:len_train-self.input_span],\
+                train_idx,\
+                X[len_train-self.input_span:,:,:],\
+                y[len_train-self.input_span:],\
+                val_index
 
-    def make_suggestion(self, today, portfolio):
-        risk_rate = 0.02
-        fee_rate = 0.006
+
+class LSTM_Strategy(BaseStrategy):
+
+    def __init__(self, model_input_length = 15):
+        super().__init__(model_input_length = 15)
+
+    def make_suggestion(self, today, portfolio, risk_rate = 0.02):
+        
         asset_to_analyze = Asset.asset_dict['BTC']
         
         positions = portfolio.get_positions(today)
@@ -180,7 +208,7 @@ class Strategy:
         # If BTC is predicted to go up - buy it
         if prediction > float(asset_to_analyze.price_on_date(today)):
             USD_to_spend = risk_rate * positions['position_value'].loc['USD']  # In this strategy, we change position by risk_rate% on every step
-            ext_price = USD_to_spend/(1 + fee_rate)                    # This is how much will be paid for BTC, extended price
+            ext_price = USD_to_spend/(1 + self.fees)                    # This is how much will be paid for BTC, extended price
             fees = USD_to_spend - ext_price                            # This is plaform fees
             BTC_price = asset_to_analyze.history['close'].loc[today]                # BTC price at the time of decision
             BTC_to_buy = ext_price/BTC_price
@@ -190,7 +218,7 @@ class Strategy:
         # If BTC is predicted to go down - sell it
         if prediction < float(asset_to_analyze.price_on_date(today)):
             BTC_to_spend = risk_rate * positions['position_size'].loc['BTC']  # In this strategy, we change position by risk_rate% on every step
-            ext_price = BTC_to_spend/(1 + fee_rate)                    # This is how much BTC will be sold, extended price
+            ext_price = BTC_to_spend/(1 + self.fees)                    # This is how much BTC will be sold, extended price
             fees = BTC_to_spend - ext_price                            # This is plaform fees
             BTC_price = asset_to_analyze.history['close'].loc[today]                # BTC price at the time of decision
             USD_to_buy = ext_price*BTC_price
@@ -250,22 +278,6 @@ class Strategy:
         except Exception as e:
             print(e)
             pass
-
-
-    def train_val_split_scale(self, df):
-        len_train = int(0.7*len(df))
-        X = []
-        y = []
-        scaled_data = self.scaler.fit_transform(np.array(df['close'].values).reshape(-1,1) )
-        for x in range(self.input_span, len(df)):
-            X.append(scaled_data[x-self.input_span:x, 0])
-            y.append(scaled_data[x,0])
-        X, y = (np.array(X), np.array(y))
-        X = np.reshape(X, (X.shape[0], X.shape[1], 1))
-        train_idx = df.index[self.input_span:len_train]
-        val_index = df.index[len_train:]
-        #print(f'from {train_idx[0]} to {train_idx[-1]}')
-        return X[0:len_train-self.input_span,:,:], y[0:len_train-self.input_span], train_idx, X[len_train-self.input_span:,:,:], y[len_train-self.input_span:], val_index
 
 
 
