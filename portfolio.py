@@ -137,7 +137,7 @@ class Portfolio:
         positions['position_value'] = positions['position_value']*positions['position_size']
         total_value = positions['position_value'].sum()
         try:
-            positions['allocations'] = positions['position_value']/total_value
+            positions['allocation'] = positions['position_value']/total_value
         except Exception:
             print('Error occured')
             pass
