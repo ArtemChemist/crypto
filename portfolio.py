@@ -135,8 +135,13 @@ class Portfolio:
                                                 lambda x: Asset.asset_dict[str(x)].price_on_date(on_date)
                                                 )
         positions['position_value'] = positions['position_value']*positions['position_size']
-        # total_value = positions['position_value'].sum()
-        # positions['allocations'] = positions['position_value']/total_value
+        total_value = positions['position_value'].sum()
+        try:
+            positions['allocations'] = positions['position_value']/total_value
+        except Exception:
+            print('Error occured')
+            pass
+        
         return positions
 
     def get_value(self, on_date = tmpstemp.today(), update = False):
@@ -179,15 +184,16 @@ class BaseStrategy:
             index.append(df.index[(x-1)])
         X, y = (np.array(X), np.array(y))
         X = np.reshape(X, (X.shape[0], X.shape[1], 1))
-        train_idx = df.index[self.input_span:len_train]
-        val_index = df.index[len_train:]
-        #print(f'from {train_idx[0]} to {train_idx[-1]}')
-        return X[0:len_train-self.input_span,:,:],\
-                y[0:len_train-self.input_span],\
-                train_idx,\
-                X[len_train-self.input_span:,:,:],\
-                y[len_train-self.input_span:],\
-                val_index
+        return X[0:len_train,:,:],\
+                y[0:len_train],\
+                index[0:len_train],\
+                X[len_train:,:,:],\
+                y[len_train:],\
+                index[len_train:]
+    
+    def backtest(self, hist_data: pd.DataFrame, portfolio: Portfolio):
+        updated_portfolio = Portfolio()
+        return updated_portfolio
 
 
 class LSTM_Strategy(BaseStrategy):
@@ -226,10 +232,6 @@ class LSTM_Strategy(BaseStrategy):
             suggestions.loc['USD'] = [USD_to_buy, USD_to_buy, 'BTC sale']
             suggestions.dropna(inplace=True)
         return suggestions
-
-    def backtest(self, hist_data: pd.DataFrame, portfolio: Portfolio):
-        updated_portfolio = Portfolio()
-        return updated_portfolio
     
     def predict_batch(self, data_to_process):
         '''
@@ -279,7 +281,32 @@ class LSTM_Strategy(BaseStrategy):
             print(e)
             pass
 
+class Rebalancing_Strategy(BaseStrategy):
 
+    def __init__(self, model_input_length = 15):
+        super().__init__(model_input_length = 15)
+
+    def make_suggestion(self, today, portfolio, BTC_allocation = 0.7):
+        
+        asset_to_analyze = Asset.asset_dict['BTC']
+        
+        positions = portfolio.get_positions(today)
+        suggestions = pd.DataFrame(columns = ['change_in_size', 'USD_value', 'note'], index = positions.index)
+
+        BTC_to_buy = ext_price/BTC_price
+        suggestions.loc['BTC'] = [BTC_to_buy, ext_price, 'Buy BTC']
+        suggestions.loc['USD'] = [-USD_to_spend,-USD_to_spend, 'BTC price w fees']
+
+        USD_to_spend = BTC_allocation * positions['position_value'].loc['USD']  # In this strategy, we change position by risk_rate% on every step
+        ext_price = USD_to_spend/(1 + self.fees)                    # This is how much will be paid for BTC, extended price
+        fees = USD_to_spend - ext_price                            # This is plaform fees
+        BTC_price = asset_to_analyze.history['close'].loc[today]                # BTC price at the time of decision
+
+
+
+        return suggestions
+    
+ 
 
 
     
