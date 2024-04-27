@@ -134,16 +134,23 @@ class Rebalancing_Strategy(BaseStrategy):
     def __init__(self, model_input_length = 15):
         super().__init__(model_input_length = 15)
 
-    def make_suggestion(self, today, portfolio, BTC_allocation = 0.7):
+    def make_suggestion(self, today, portfolio, BTC_target_alloc = 0.7):
         
-        asset_to_analyze = Asset.asset_dict['BTC']
+        BTC = Asset.asset_dict['BTC']
+        USD = Asset.asset_dict['USD']
         
         positions = portfolio.get_positions(today)
         suggestions = pd.DataFrame(columns = ['change_in_size', 'USD_value', 'note'], index = positions.index)
-        positions['position_size'].loc['BTC']
-        BTC_to_buy = ext_price/BTC_price
+        NP_B = positions['position_value'].loc['BTC']
+        NP_U = positions['position_value'].loc['USD']
+        P_U = USD.history.history['close'].loc[today]
+        P_B = BTC.history.history['close'].loc[today]
+        B_t = BTC_target_alloc
+        U_t = 1-B_t
+        d_USD =  (B_t*NP_U-U_t*NP_B)/(U_t*P_B*P_B + B_t*P_U)  #Amount of USD to spend on BTC
+        BTC_to_buy = P_B * d_USD
         suggestions.loc['BTC'] = [BTC_to_buy, ext_price, 'Buy BTC']
-        suggestions.loc['USD'] = [-USD_to_spend,-USD_to_spend, 'BTC price w fees']
+        suggestions.loc['USD'] = [d_USD, d_USD, 'BTC price w fees']
 
         USD_to_spend = BTC_allocation * positions['position_value'].loc['USD']  # In this strategy, we change position by risk_rate% on every step
         ext_price = USD_to_spend/(1 + self.fees)                    # This is how much will be paid for BTC, extended price
