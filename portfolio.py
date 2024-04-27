@@ -150,7 +150,7 @@ class Portfolio:
         matches = self.value.index.get_indexer([on_date], method='nearest')
         matched_date = self.value.index[matches[0]]
         if ((matched_date - on_date) > tmpdelta(days=1))  | ((on_date - matched_date) > tmpdelta(days=1)):
-            print(f'Reported {self.ticker} value is {on_date- matched_date} old')
+            print(f'Reported value is {on_date- matched_date} old')
         return self.value.loc[matched_date]
     
     def update_value(self, up_to = tmpstemp.fromisoformat('2023-11-30')):
