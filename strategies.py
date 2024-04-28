@@ -131,37 +131,24 @@ class LSTM_Strategy(BaseStrategy):
 
 class Rebalancing_Strategy(BaseStrategy):
 
-    def __init__(self, model_input_length = 15):
-        super().__init__(model_input_length = 15)
+    def __init__(self, target_allocations):
+        super().__init__()
+        self.target_alloc = pd.Series(target_allocations.values(), name = 'target', index = pd.Index(target_allocations.keys(), name = 'ticker'))
 
-    def make_suggestion(self, today, portfolio, BTC_target_alloc = 0.7):
-        
-        BTC = Asset.asset_dict['BTC']
-        USD = Asset.asset_dict['USD']
-        
-        positions = portfolio.get_positions(today)
-        suggestions = pd.DataFrame(columns = ['change_in_size', 'USD_value', 'note'], index = positions.index)
-        NP_B = positions['position_value'].loc['BTC']
-        NP_U = positions['position_value'].loc['USD']
-        P_U = USD.history.history['close'].loc[today]
-        P_B = BTC.history.history['close'].loc[today]
-        B_t = BTC_target_alloc
-        U_t = 1-B_t
-        d_USD =  (B_t*NP_U-U_t*NP_B)/(U_t*P_B*P_B + B_t*P_U)  #Amount of USD to spend on BTC
-        BTC_to_buy = P_B * d_USD
-        suggestions.loc['BTC'] = [BTC_to_buy, ext_price, 'Buy BTC']
-        suggestions.loc['USD'] = [d_USD, d_USD, 'BTC price w fees']
+    def make_suggestion(self, today, portfolio):
+        suggestion  = portfolio.get_positions(today).copy()
+        total = suggestion['position_value'].sum()
 
-        USD_to_spend = BTC_allocation * positions['position_value'].loc['USD']  # In this strategy, we change position by risk_rate% on every step
-        ext_price = USD_to_spend/(1 + self.fees)                    # This is how much will be paid for BTC, extended price
-        fees = USD_to_spend - ext_price                            # This is plaform fees
-        BTC_price = asset_to_analyze.history['close'].loc[today]                # BTC price at the time of decision
+        # Get today's price for wach asset
+        today_price = [Asset.asset_dict[asset].price_on_date(today) for asset in suggestion.index]
+        today_price = pd.Series(today_price, name = 'today_price', index = suggestion.index)
 
+        # Bring all data on the same dataframe
+        suggestion = pd.concat([suggestion, self.target_alloc, today_price], axis = 1 )
 
+        # Calculate the suggested change as a simple difference between current and target
+        suggestion['USD_value'] = suggestion['target']*total - suggestion['position_value']
+        suggestion['change_in_size'] = suggestion['USD_value']/suggestion['today_price']
 
-        return suggestions
-    
- 
-
-
-    
+        suggestion['note'] = today.strftime('%Y-%m-%d') + ' rebalancing'
+        return suggestion
