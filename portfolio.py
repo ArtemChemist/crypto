@@ -9,12 +9,21 @@ from keras.models import Model
 
 import cbpro
 
+
 import coinbase_advanced_trader.coinbase_client as cb
 from coinbase_advanced_trader.config import set_api_credentials
-with open('CoinBaseAPIKey.key', 'r') as f:
-    contents = f.readlines()
-cb_key = contents[0].split(':')[-1].strip()
-cb_secret = contents[1].split(':')[-1].strip()
+
+if 'cb_key' in os.environ.keys():
+    cb_key = os.environ['cb_key']
+    cb_secret = os.environ['cb_secret']
+else:
+    print('Keys are not in the env vars')
+    with open('CoinBaseAPIKey.key', 'r') as f:
+        contents = f.readlines()
+    cb_key = contents[0].split(':')[-1].strip()
+    cb_secret = contents[1].split(':')[-1].strip()
+
+
 
 set_api_credentials(cb_key, cb_secret)
 
