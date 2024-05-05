@@ -9,6 +9,15 @@ from keras.models import Model
 
 import cbpro
 
+import coinbase_advanced_trader.coinbase_client as cb
+from coinbase_advanced_trader.config import set_api_credentials
+with open('CoinBaseAPIKey.key', 'r') as f:
+    contents = f.readlines()
+cb_key = contents[0].split(':')[-1].strip()
+cb_secret = contents[1].split(':')[-1].strip()
+
+set_api_credentials(cb_key, cb_secret)
+
 class Asset:
     asset_dict = {}
     public_client = cbpro.PublicClient()
@@ -117,7 +126,7 @@ class Portfolio:
     def update_transactions(self, ticker:str, qty:float, transaction_date = tmpstemp.today(), note = ''):
         self.transactions.loc[(transaction_date,ticker),:] = [qty, note]
 
-    def get_positions(self, on_date = tmpstemp.today()):
+    def get_hist_positions(self, on_date = tmpstemp.today()):
         '''
         Returns portfolio composition on the specified date
         '''
@@ -144,7 +153,7 @@ class Portfolio:
         
         return positions
 
-    def get_value(self, on_date = tmpstemp.today(), update = False):
+    def get_hist_value(self, on_date = tmpstemp.today(), update = False):
         if update:
             self.update_value(up_to = on_date)
         matches = self.value.index.get_indexer([on_date], method='nearest')
@@ -152,6 +161,36 @@ class Portfolio:
         if ((matched_date - on_date) > tmpdelta(days=1))  | ((on_date - matched_date) > tmpdelta(days=1)):
             print(f'Reported value is {on_date- matched_date} old')
         return self.value.loc[matched_date]
+    
+    def get_spot(self, x):
+        try:
+            return float(cb.getProduct(f'{x}-USD')['price'])
+        except:
+            if x[:3] == 'USD':
+                return 1
+            else:
+                return 0
+
+    def get_current_postions(self, on_date = tmpstemp.today(), update = False):
+        '''
+        Returns portfolio composition from Coinbase account
+        '''
+       
+        positions = {}
+        for account in cb.listAccounts()['accounts']:
+            positions[account['name'].split(' ')[0]] = float(account['available_balance']['value'])
+
+        positions = pd.DataFrame(columns = ['position_size'], data = positions.values(), index = pd.Index(positions.keys(), name = 'ticker'))
+        positions['position_value'] = positions.apply(lambda x: self.get_spot(x.index) if x['position_value']>0 else 0)
+        positions['position_value'] = positions['position_value']*positions['position_size']
+        total_value = positions['position_value'].sum()
+        try:
+            positions['allocation'] = positions['position_value']/total_value
+        except Exception:
+            print('Error occured')
+            pass
+        
+        return positions
     
     def update_value(self, up_to = tmpstemp.fromisoformat('2023-11-30')):
         #self.value.drop(self.value.index, inplace=True)
