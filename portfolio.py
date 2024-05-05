@@ -162,11 +162,11 @@ class Portfolio:
             print(f'Reported value is {on_date- matched_date} old')
         return self.value.loc[matched_date]
     
-    def get_spot(self, x):
+    def get_spot(self, asset):
         try:
-            return float(cb.getProduct(f'{x}-USD')['price'])
+            return float(cb.getProduct(f'{asset}-USD')['price'])
         except:
-            if x[:3] == 'USD':
+            if asset[:3] == 'USD':
                 return 1
             else:
                 return 0
@@ -181,7 +181,7 @@ class Portfolio:
             positions[account['name'].split(' ')[0]] = float(account['available_balance']['value'])
 
         positions = pd.DataFrame(columns = ['position_size'], data = positions.values(), index = pd.Index(positions.keys(), name = 'ticker'))
-        positions['position_value'] = positions.apply(lambda x: self.get_spot(x.index) if x['position_value']>0 else 0)
+        positions['position_value'] = positions.index.to_series().apply(lambda x: self.get_spot(x))
         positions['position_value'] = positions['position_value']*positions['position_size']
         total_value = positions['position_value'].sum()
         try:
