@@ -1,7 +1,7 @@
 import pandas as pd
 from pandas import Timestamp as tmpstemp
 from pandas import Timedelta as tmpdelta
-import numpy as np
+#import numpy as np
 import os
 
 
@@ -23,7 +23,7 @@ set_api_credentials(cb_key, cb_secret)
 
 class Asset:
     asset_dict = {}
-    public_client = cbpro.PublicClient()
+    #public_client = cbpro.PublicClient()
     '''
     @staticmethod
     def connect_to_exchange():
