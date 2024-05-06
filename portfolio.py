@@ -4,15 +4,11 @@ from pandas import Timedelta as tmpdelta
 import numpy as np
 import os
 
-from sklearn.preprocessing import MinMaxScaler
-from keras.models import Model
-
-import cbpro
-
 
 import coinbase_advanced_trader.coinbase_client as cb
 from coinbase_advanced_trader.config import set_api_credentials
 
+# Try reading credentials from environment, if none, read from file
 if 'cb_key' in os.environ.keys():
     cb_key = os.environ['cb_key']
     cb_secret = os.environ['cb_secret']
@@ -23,14 +19,12 @@ else:
     cb_key = contents[0].split(':')[-1].strip()
     cb_secret = contents[1].split(':')[-1].strip()
 
-
-
 set_api_credentials(cb_key, cb_secret)
 
 class Asset:
     asset_dict = {}
     public_client = cbpro.PublicClient()
-
+    '''
     @staticmethod
     def connect_to_exchange():
         with open('CoinBaseAPIKey.key', 'r') as f:
@@ -38,7 +32,7 @@ class Asset:
         cb_key = contents[0].split(':')[-1].strip()
         cb_secret = contents[1].split(':')[-1].strip()
         #return Asset.public_client = cbpro.PublicClient()
-    
+    '''
     @staticmethod
     def make_USD():
         USD = Asset('USD')
@@ -83,12 +77,10 @@ class Asset:
         '''
         self.history = pd.concat([self.history, incoming_df]).groupby(level=0).last()
         self.save_history_to_local()
-
+    '''
     def update_history_from_excahnge(self, currency: str, date_from, date_to):
-        '''
         dates as pd.Datetime
         currency: the currency we pay to obtain this asset, as a ticker (USD, USDT etc)
-        '''
         next_date = date_from
         while next_date < date_to:
             date_from_str = date_from.strftime('%Y-%m-%d')
@@ -104,7 +96,7 @@ class Asset:
             self.update_history_from_df(incoming_data)
             date_from = date_from + tmpdelta(days=190)
         self.save_history_to_local()
-
+    '''
     def read_history_from_local(self):
         incoming_data= pd.read_csv(self.local_path, sep='\t', index_col=0, parse_dates=True)
         self.update_history_from_df(incoming_data)
