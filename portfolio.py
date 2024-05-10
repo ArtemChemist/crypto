@@ -3,12 +3,17 @@ from pandas import Timestamp as tmpstemp
 from pandas import Timedelta as tmpdelta
 import numpy as np
 import os
+import json
 
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Model
 
 from coinbase.rest import RESTClient
-client = RESTClient(key_file="coinbase_cloud_api_key.json")
+if os.environ['USERDOMAIN'] == 'PC-MNR-LEBEDEVA':
+    with open('coinbase_cloud_api_key.json') as f:
+        d = json.load(f)
+    os.environ['API_KEY'] =d['name']
+    os.environ['API_SECRET'] = d['privateKey']
 
 class Asset:
     asset_dict = {}
