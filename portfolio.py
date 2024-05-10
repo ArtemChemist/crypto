@@ -7,29 +7,12 @@ import os
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Model
 
-import cbpro
-
-import coinbase_advanced_trader.coinbase_client as cb
-from coinbase_advanced_trader.config import set_api_credentials
-with open('CoinBaseAPIKey.key', 'r') as f:
-    contents = f.readlines()
-cb_key = contents[0].split(':')[-1].strip()
-cb_secret = contents[1].split(':')[-1].strip()
-
-set_api_credentials(cb_key, cb_secret)
+from coinbase.rest import RESTClient
+client = RESTClient(key_file="coinbase_cloud_api_key.json")
 
 class Asset:
     asset_dict = {}
-    public_client = cbpro.PublicClient()
 
-    @staticmethod
-    def connect_to_exchange():
-        with open('CoinBaseAPIKey.key', 'r') as f:
-            contents = f.readlines()
-        cb_key = contents[0].split(':')[-1].strip()
-        cb_secret = contents[1].split(':')[-1].strip()
-        #return Asset.public_client = cbpro.PublicClient()
-    
     @staticmethod
     def make_USD():
         USD = Asset('USD')
@@ -82,15 +65,14 @@ class Asset:
         '''
         next_date = date_from
         while next_date < date_to:
-            date_from_str = date_from.strftime('%Y-%m-%d')
+            date_from_unix = (date_from - tmpstemp("1970-01-01")) // tmpdelta('1s')
             next_date = min((date_from + tmpdelta(days=190)), date_to)
-            next_date_str = next_date.strftime('%Y-%m-%d')
-            incoming_data= pd.DataFrame(
-                Asset.public_client.get_product_historic_rates(f'{self.ticker}-{currency}',
-                                                        date_from_str, next_date_str, 86400)
-            )
+            next_date_unix = (next_date - tmpstemp("1970-01-01")) // tmpdelta('1s')
+
+            exchange_response = client.get_public_candles(f'{self.ticker}-{currency}', date_from_unix, next_date_unix, 'ONE_DAY')
+            incoming_data= pd.DataFrame( data = exchange_response['candles']) 
             incoming_data.columns = [ 'date_time', 'low', 'high', 'open', 'close', 'volume' ]
-            incoming_data['date_time']= incoming_data['date_time'].apply(lambda x: tmpstemp.fromtimestamp(x))
+            incoming_data['date_time']= incoming_data['date_time'].apply(lambda x: tmpstemp.fromtimestamp(int(x)))
             incoming_data.set_index('date_time', inplace=True)
             self.update_history_from_df(incoming_data)
             date_from = date_from + tmpdelta(days=190)
@@ -162,14 +144,17 @@ class Portfolio:
             print(f'Reported value is {on_date- matched_date} old')
         return self.value.loc[matched_date]
     
-    def get_spot(self, x):
+    def get_spot(self, coin):
         try:
-            return float(cb.getProduct(f'{x}-USD')['price'])
-        except:
-            if x[:3] == 'USD':
+            product = f'{coin}-USD'
+            if product in pd.DataFrame(client.get_products()['products'])['product_id'].values:
+                return float(client.get_product(product)['price'])
+            elif product == 'USD-USD':
                 return 1
             else:
-                return 0
+                pass
+        except Exception as e:
+            print(e)
 
     def get_current_postions(self, on_date = tmpstemp.today(), update = False):
         '''
@@ -177,11 +162,11 @@ class Portfolio:
         '''
        
         positions = {}
-        for account in cb.listAccounts()['accounts']:
+        for account in client.get_accounts()['accounts']:
             positions[account['name'].split(' ')[0]] = float(account['available_balance']['value'])
 
         positions = pd.DataFrame(columns = ['position_size'], data = positions.values(), index = pd.Index(positions.keys(), name = 'ticker'))
-        positions['position_value'] = positions.apply(lambda x: self.get_spot(x.index) if x['position_value']>0 else 0)
+        positions['position_value'] = positions.index.to_series().apply(lambda x: self.get_spot(x) if positions['position_size'].loc[x]>0 else 0)  #
         positions['position_value'] = positions['position_value']*positions['position_size']
         total_value = positions['position_value'].sum()
         try:
@@ -196,7 +181,7 @@ class Portfolio:
         #self.value.drop(self.value.index, inplace=True)
         date_to_add = up_to
         while date_to_add >= self.orig_date:
-            composition_at_date = self.get_positions(date_to_add).dropna()
+            composition_at_date = self.get_hist_positions(date_to_add).dropna()
             value_to_add = composition_at_date.position_value.sum()
             self.value.loc[date_to_add] = value_to_add
             date_to_add = date_to_add - tmpdelta(days=1)

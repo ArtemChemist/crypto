@@ -9,8 +9,6 @@ from keras.models import Model
 
 from portfolio import Asset, Portfolio
 
-import cbpro
-
 class BaseStrategy:
 
     def __init__(self, model_input_length = 15):
@@ -53,7 +51,7 @@ class LSTM_Strategy(BaseStrategy):
         
         asset_to_analyze = Asset.asset_dict['BTC']
         
-        positions = portfolio.get_positions(today)
+        positions = portfolio.get_hist_positions(today)
         suggestions = pd.DataFrame(columns = ['change_in_size', 'USD_value', 'note'], index = positions.index)
         data_to_process = asset_to_analyze.history['close'].loc[today-tmpdelta(days=self.input_span-1):today+tmpdelta(days=1)]
         prediction = self.predict_one(data_to_process)
@@ -136,7 +134,7 @@ class Rebalancing_Strategy(BaseStrategy):
         self.target_alloc = pd.Series(target_allocations.values(), name = 'target', index = pd.Index(target_allocations.keys(), name = 'ticker'))
 
     def make_suggestion(self, today, portfolio):
-        suggestion  = portfolio.get_positions(today).copy()
+        suggestion  = portfolio.get_hist_positions(today).copy()
         total = suggestion['position_value'].sum()
 
         # Get today's price for wach asset
