@@ -1,9 +1,4 @@
 import pandas as pd
-from pandas import Timestamp as tmpstemp
-from pandas import Timedelta as tmpdelta
-import numpy as np
-
-
 from portfolio import Asset, Portfolio
 
 class BaseStrategy:

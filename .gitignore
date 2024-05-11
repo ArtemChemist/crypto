@@ -207,3 +207,4 @@ set_keys
 .crypto_venv/share/man/man1/ipython.1
 .crypto_venv/share/man/man1/ttx.1
 coinbase_cloud_api_key.json
+python.zip
