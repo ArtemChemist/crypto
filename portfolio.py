@@ -5,15 +5,14 @@ import numpy as np
 import os
 import json
 
-from sklearn.preprocessing import MinMaxScaler
-from keras.models import Model
-
 from coinbase.rest import RESTClient
-if os.environ['USERDOMAIN'] == 'PC-MNR-LEBEDEVA':
+if os.environ['USERNAME'] in ['art_usr', 'Artem']:
     with open('coinbase_cloud_api_key.json') as f:
         d = json.load(f)
     os.environ['API_KEY'] =d['name']
     os.environ['API_SECRET'] = d['privateKey']
+client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+
 
 class Asset:
     asset_dict = {}
@@ -74,7 +73,7 @@ class Asset:
             next_date = min((date_from + tmpdelta(days=190)), date_to)
             next_date_unix = (next_date - tmpstemp("1970-01-01")) // tmpdelta('1s')
 
-            exchange_response = client.get_public_candles(f'{self.ticker}-{currency}', date_from_unix, next_date_unix, 'ONE_DAY')
+            exchange_response = client.get_candles(f'{self.ticker}-{currency}', date_from_unix, next_date_unix, 'ONE_DAY')
             incoming_data= pd.DataFrame( data = exchange_response['candles']) 
             incoming_data.columns = [ 'date_time', 'low', 'high', 'open', 'close', 'volume' ]
             incoming_data['date_time']= incoming_data['date_time'].apply(lambda x: tmpstemp.fromtimestamp(int(x)))
@@ -154,7 +153,7 @@ class Portfolio:
             product = f'{coin}-USD'
             if product in pd.DataFrame(client.get_products()['products'])['product_id'].values:
                 return float(client.get_product(product)['price'])
-            elif product == 'USD-USD':
+            elif coin in ['USD', 'USDC']:
                 return 1
             else:
                 pass

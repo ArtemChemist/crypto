@@ -36,10 +36,6 @@ class BaseStrategy:
                 X[len_train:,:,:],\
                 y[len_train:],\
                 index[len_train:]
-    
-    def backtest(self, hist_data: pd.DataFrame, portfolio: Portfolio):
-        updated_portfolio = Portfolio()
-        return updated_portfolio
 
 
 class LSTM_Strategy(BaseStrategy):
