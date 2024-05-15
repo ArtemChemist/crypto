@@ -13,8 +13,7 @@ if os.environ['USERNAME'] in ['art_usr', 'Artem']:
     os.environ['API_SECRET'] = d['privateKey']
 client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
 
-
-class Asset:
+class Asset_train:
     asset_dict = {}
 
     @staticmethod
@@ -95,6 +94,21 @@ class Asset:
             print('Error occured')
             pass
         self.history.to_csv(self.local_path, sep='\t', mode = 'w')
+
+class Asset ():
+    if os.environ['MY_ENVIRONMENT'] == 'training':
+        self = Asset_train
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.local_path = f'{self.ticker}_history.csv'
+        Asset.asset_dict.pop(ticker, None)
+        Asset.asset_dict[ticker] = self
+        self.history = pd.DataFrame(columns = ['high', 'low', 'open', 'close', 'volume'],
+                                    index = pd.DatetimeIndex([], name = 'date_time'))
+        try:
+            self.read_history_from_local()
+        except OSError:
+            pass
 
 class Portfolio:
     def __init__(self, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
