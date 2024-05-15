@@ -29,6 +29,8 @@ class Asset:
         USD.update_history_from_df(USD_2000)
         return USD
 
+    make_USD()
+
     def __init__(self, ticker):
         self.ticker = ticker
         self.local_path = f'{self.ticker}_history.csv'
