@@ -27,22 +27,13 @@ class Asset_base:
                             index=idx)
         USD.update_history_from_df(USD_2000)
         return USD
-
     make_USD()
 
     def __init__(self, ticker):
         self.ticker = ticker
-        self.local_path = f'{self.ticker}_history.csv'
-        Asset.asset_dict.pop(ticker, None)
-        Asset.asset_dict[ticker] = self
-        self.history = pd.DataFrame(columns = ['high', 'low', 'open', 'close', 'volume'],
-                                    index = pd.DatetimeIndex([], name = 'date_time'))
-        try:
-            self.read_history_from_local()
-        except OSError:
-            pass
-
-        
+        Asset_base.asset_dict.pop(ticker, None)
+        Asset_base.asset_dict[ticker] = self
+       
     def latest_price(self):
         return self.price_on_date()
     
@@ -61,7 +52,6 @@ class Asset_base:
         incoming_df: the dataframe with the new historical records
         '''
         self.history = pd.concat([self.history, incoming_df]).groupby(level=0).last()
-        self.save_history_to_local()
 
     def update_history_from_excahnge(self, currency: str, date_from, date_to):
         '''
@@ -81,6 +71,31 @@ class Asset_base:
             incoming_data.set_index('date_time', inplace=True)
             self.update_history_from_df(incoming_data)
             date_from = date_from + tmpdelta(days=190)
+
+class Asset_lambda(Asset_base):
+
+    def __init__(self, param_lambda = 'Lambda'):
+        super().__init__()
+
+
+class Asset_train(Asset_base):
+
+    def __init__(self, param_lambda = 'Lambda'):
+        super().__init__()
+        self.local_path = f'{self.ticker}_history.csv'
+        self.history = pd.DataFrame(columns = ['high', 'low', 'open', 'close', 'volume'],
+                                    index = pd.DatetimeIndex([], name = 'date_time'))
+        try:
+            self.read_history_from_local()
+        except OSError:
+            pass
+
+    def update_history_from_excahnge(self, currency: str, date_from, date_to):
+        super().update_history_from_excahnge(currency, date_from, date_to)
+        self.save_history_to_local()
+        
+    def update_history_from_df(self, incoming_df: pd.DataFrame):
+        super().update_history_from_df(incoming_df)
         self.save_history_to_local()
 
     def read_history_from_local(self):
@@ -94,17 +109,6 @@ class Asset_base:
             print('Error occured')
             pass
         self.history.to_csv(self.local_path, sep='\t', mode = 'w')
-
-class Asset_lambda(Asset_base):
-
-    def __init__(self, param_lambda = 'Lambda'):
-        super().__init__()
-
-
-class Asset_train(Asset_base):
-
-    def __init__(self, param_lambda = 'Lambda'):
-        super().__init__()
 
 
 class Asset():
