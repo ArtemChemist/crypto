@@ -1,17 +1,22 @@
 import pandas as pd
-#from pandas import Timestamp as tmpstemp
-#from pandas import Timedelta as tmpdelta
-#import numpy as np
-
 from portfolio import Asset, Portfolio
 
-class Rebalancing_Strategy():
+class BaseStrategy:
+
+    def __init__(self, model_input_length = 15):
+        self.frequency = 1
+        self.input_span = model_input_length
+        self.fees = 0.006
+
+
+class Rebalancing_Strategy(BaseStrategy):
 
     def __init__(self, target_allocations):
+        super().__init__()
         self.target_alloc = pd.Series(target_allocations.values(), name = 'target', index = pd.Index(target_allocations.keys(), name = 'ticker'))
 
     def make_suggestion(self, today, portfolio):
-        suggestion  = portfolio.get_positions(today).copy()
+        suggestion  = portfolio.get_hist_positions(today).copy()
         total = suggestion['position_value'].sum()
 
         # Get today's price for wach asset

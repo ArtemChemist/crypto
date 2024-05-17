@@ -1,38 +1,26 @@
 import pandas as pd
 from pandas import Timestamp as tmpstemp
 from pandas import Timedelta as tmpdelta
-#import numpy as np
 import os
+import json
 
-
-import coinbase_advanced_trader.coinbase_client as cb
-from coinbase_advanced_trader.config import set_api_credentials
-
-# Try reading credentials from environment, if none, read from file
-if 'cb_key' in os.environ.keys():
-    cb_key = os.environ['cb_key']
-    cb_secret = os.environ['cb_secret']
+from coinbase.rest import RESTClient
+if 'API_KEY' in os.environ:
+    client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
 else:
-    print('Keys are not in the env vars')
-    with open('CoinBaseAPIKey.key', 'r') as f:
-        contents = f.readlines()
-    cb_key = contents[0].split(':')[-1].strip()
-    cb_secret = contents[1].split(':')[-1].strip()
+    try:
+        with open('coinbase_cloud_api_key.json') as f:
+            d = json.load(f)
+        os.environ['API_KEY'] =d['name']
+        os.environ['API_SECRET'] = d['privateKey']
+        client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+    except:
+        print('Can not find keys')
 
-set_api_credentials(cb_key, cb_secret)
 
 class Asset:
     asset_dict = {}
-    #public_client = cbpro.PublicClient()
-    '''
-    @staticmethod
-    def connect_to_exchange():
-        with open('CoinBaseAPIKey.key', 'r') as f:
-            contents = f.readlines()
-        cb_key = contents[0].split(':')[-1].strip()
-        cb_secret = contents[1].split(':')[-1].strip()
-        #return Asset.public_client = cbpro.PublicClient()
-    '''
+
     @staticmethod
     def make_USD():
         USD = Asset('USD')
@@ -77,26 +65,27 @@ class Asset:
         '''
         self.history = pd.concat([self.history, incoming_df]).groupby(level=0).last()
         self.save_history_to_local()
-    '''
+
     def update_history_from_excahnge(self, currency: str, date_from, date_to):
+        '''
         dates as pd.Datetime
         currency: the currency we pay to obtain this asset, as a ticker (USD, USDT etc)
+        '''
         next_date = date_from
         while next_date < date_to:
-            date_from_str = date_from.strftime('%Y-%m-%d')
+            date_from_unix = (date_from - tmpstemp("1970-01-01")) // tmpdelta('1s')
             next_date = min((date_from + tmpdelta(days=190)), date_to)
-            next_date_str = next_date.strftime('%Y-%m-%d')
-            incoming_data= pd.DataFrame(
-                Asset.public_client.get_product_historic_rates(f'{self.ticker}-{currency}',
-                                                        date_from_str, next_date_str, 86400)
-            )
+            next_date_unix = (next_date - tmpstemp("1970-01-01")) // tmpdelta('1s')
+
+            exchange_response = client.get_candles(f'{self.ticker}-{currency}', date_from_unix, next_date_unix, 'ONE_DAY')
+            incoming_data= pd.DataFrame( data = exchange_response['candles']) 
             incoming_data.columns = [ 'date_time', 'low', 'high', 'open', 'close', 'volume' ]
-            incoming_data['date_time']= incoming_data['date_time'].apply(lambda x: tmpstemp.fromtimestamp(x))
+            incoming_data['date_time']= incoming_data['date_time'].apply(lambda x: tmpstemp.fromtimestamp(int(x)))
             incoming_data.set_index('date_time', inplace=True)
             self.update_history_from_df(incoming_data)
             date_from = date_from + tmpdelta(days=190)
         self.save_history_to_local()
-    '''
+
     def read_history_from_local(self):
         incoming_data= pd.read_csv(self.local_path, sep='\t', index_col=0, parse_dates=True)
         self.update_history_from_df(incoming_data)
@@ -163,14 +152,17 @@ class Portfolio:
             print(f'Reported value is {on_date- matched_date} old')
         return self.value.loc[matched_date]
     
-    def get_spot(self, asset):
+    def get_spot(self, coin):
         try:
-            return float(cb.getProduct(f'{asset}-USD')['price'])
-        except:
-            if asset[:3] == 'USD':
+            product = f'{coin}-USD'
+            if product in pd.DataFrame(client.get_products()['products'])['product_id'].values:
+                return float(client.get_product(product)['price'])
+            elif coin in ['USD', 'USDC']:
                 return 1
             else:
-                return 0
+                pass
+        except Exception as e:
+            print(e)
 
     def get_current_postions(self, on_date = tmpstemp.today(), update = False):
         '''
@@ -178,11 +170,11 @@ class Portfolio:
         '''
        
         positions = {}
-        for account in cb.listAccounts()['accounts']:
+        for account in client.get_accounts()['accounts']:
             positions[account['name'].split(' ')[0]] = float(account['available_balance']['value'])
 
         positions = pd.DataFrame(columns = ['position_size'], data = positions.values(), index = pd.Index(positions.keys(), name = 'ticker'))
-        positions['position_value'] = positions.index.to_series().apply(lambda x: self.get_spot(x))
+        positions['position_value'] = positions.index.to_series().apply(lambda x: self.get_spot(x) if positions['position_size'].loc[x]>0 else 0)  #
         positions['position_value'] = positions['position_value']*positions['position_size']
         total_value = positions['position_value'].sum()
         try:
@@ -197,7 +189,7 @@ class Portfolio:
         #self.value.drop(self.value.index, inplace=True)
         date_to_add = up_to
         while date_to_add >= self.orig_date:
-            composition_at_date = self.get_positions(date_to_add).dropna()
+            composition_at_date = self.get_hist_positions(date_to_add).dropna()
             value_to_add = composition_at_date.position_value.sum()
             self.value.loc[date_to_add] = value_to_add
             date_to_add = date_to_add - tmpdelta(days=1)

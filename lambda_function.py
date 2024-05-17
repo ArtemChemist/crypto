@@ -1,9 +1,16 @@
-from portfolio import Portfolio, Asset
-from strategies import Rebalancing_Strategy
-from coinbase_advanced_trader.strategies.limit_order_strategies import fiat_limit_buy, fiat_limit_sell
+from portfolio import Portfolio
+import os
 
 def lambda_handler(event, context):
     rebal_portfolio = Portfolio()
-    curr_pos = rebal_portfolio.get_current_postions()
-    for pos in curr_pos.index:
-        print(curr_pos['allocation'].loc[pos])
+
+    positions = rebal_portfolio.get_current_postions()
+    for ticker in positions.index:
+        alloc = positions['allocation'].loc[ticker]*100//1
+        if alloc >0:
+            print(f"{ticker}: {alloc}%")
+
+event_test = {'key1':'one', 'key2':'two'}
+context = 'QWERTY'
+
+lambda_handler(event_test, context)
