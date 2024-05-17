@@ -162,3 +162,5 @@ cython_debug/
 
 **/*.key
 **/*.csv
+coinbase_cloud_api_key.json
+set_keys.py
