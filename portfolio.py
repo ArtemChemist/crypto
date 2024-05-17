@@ -4,6 +4,7 @@ from pandas import Timedelta as tmpdelta
 import numpy as np
 import os
 import json
+from asset import Asset
 
 from coinbase.rest import RESTClient
 if 'API_KEY' in os.environ:

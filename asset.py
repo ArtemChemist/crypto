@@ -14,11 +14,15 @@ if os.environ['USERNAME'] in ['art_usr', 'Artem']:
 client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
 
 class Asset_base:
+    # Dict to keep track of all assets and call them by string ticker
     asset_dict = {}
 
-    @staticmethod
-    def make_USD():
-        USD = Asset('USD')
+    @classmethod
+    def make_USD(cls):
+        '''
+        Method to create a USD as an asset with 1:1 exchange rate to USD. 
+        '''
+        USD = cls('USD')
         date_range = pd.date_range(start=tmpstemp.fromisoformat('2000-01-01'), end=tmpstemp.today())
         idx =pd.DatetimeIndex(date_range, name = 'date_time')
         USD_2000 = pd.DataFrame({'low':[1] * len(idx), 'high':[1] * len(idx),
@@ -27,26 +31,18 @@ class Asset_base:
                             index=idx)
         USD.update_history_from_df(USD_2000)
         return USD
-    make_USD()
 
     def __init__(self, ticker):
         self.ticker = ticker
+        # Remove this asset from the class dict, if exists
+        # Add reference to this asset to the class dict
         Asset_base.asset_dict.pop(ticker, None)
         Asset_base.asset_dict[ticker] = self
+        self.history = pd.DataFrame(columns = ['high', 'low', 'open', 'close', 'volume'],
+                            index = pd.DatetimeIndex([], name = 'date_time'))
        
-    def latest_price(self):
-        return self.price_on_date()
-    
-    def price_on_date(self, on_date = tmpstemp.today):
-        '''
-        Returns the prce on the date that is the closest to the supplied date
-        '''
-        matches = self.history.index.get_indexer([on_date], method='nearest')
-        matched_date = self.history.index[matches[0]]
-        if ((matched_date - on_date) > tmpdelta(days=1))  | ((on_date - matched_date) > tmpdelta(days=1)):
-            print(f'Reported {self.ticker} price is {on_date- matched_date} old')
-        return self.history['close'].loc[matched_date]
-    
+
+
     def update_history_from_df(self, incoming_df:pd.DataFrame):
         '''
         incoming_df: the dataframe with the new historical records
@@ -74,17 +70,16 @@ class Asset_base:
 
 class Asset_lambda(Asset_base):
 
-    def __init__(self, param_lambda = 'Lambda'):
-        super().__init__()
+    def __init__(self, ticker):
+        super().__init__(ticker)
 
 
 class Asset_train(Asset_base):
 
-    def __init__(self, param_lambda = 'Lambda'):
-        super().__init__()
+    def __init__(self, ticker):
+        super().__init__(ticker)
         self.local_path = f'{self.ticker}_history.csv'
-        self.history = pd.DataFrame(columns = ['high', 'low', 'open', 'close', 'volume'],
-                                    index = pd.DatetimeIndex([], name = 'date_time'))
+
         try:
             self.read_history_from_local()
         except OSError:
@@ -110,12 +105,24 @@ class Asset_train(Asset_base):
             pass
         self.history.to_csv(self.local_path, sep='\t', mode = 'w')
 
+    def price_on_date(self, on_date = tmpstemp.today):
+        '''
+        Returns the prce on the date that is the closest to the supplied date
+        '''
+        matches = self.history.index.get_indexer([on_date], method='nearest')
+        matched_date = self.history.index[matches[0]]
+        if ((matched_date - on_date) > tmpdelta(days=1))  | ((on_date - matched_date) > tmpdelta(days=1)):
+            print(f'Reported {self.ticker} price is {on_date- matched_date} old')
+        return self.history['close'].loc[matched_date]
+    
+    def latest_price(self):
+        return self.price_on_date()
+    
+class Asset(Asset_base):
 
-class Asset():
-
-    def __new__(cls):
+    def __new__(cls, ticker):
         key_word = os.environ['MY_ENVIRONMENT']
         if key_word == 'prod':
-            return Asset_lambda()
+            return Asset_lambda(ticker)
         if key_word == 'training':
-            return Asset_train()
+            return Asset_train(ticker)
