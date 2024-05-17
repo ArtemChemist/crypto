@@ -165,5 +165,6 @@ cython_debug/
 coinbase_cloud_api_key.json
 set_keys.py
 .crypto_venv/
+data/
 models/*.*
 python.zip

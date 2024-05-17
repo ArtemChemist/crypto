@@ -78,7 +78,7 @@ class Asset_train(Asset_base):
 
     def __init__(self, ticker):
         super().__init__(ticker)
-        self.local_path = f'{self.ticker}_history.csv'
+        self.local_path = os.path.join(os.getcwd(), 'data', f'{self.ticker}_history.csv')
 
         try:
             self.read_history_from_local()
