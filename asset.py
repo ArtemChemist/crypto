@@ -5,12 +5,17 @@ import os
 import json
 
 from coinbase.rest import RESTClient
-if os.environ['USERNAME'] in ['art_usr', 'Artem']:
-    with open('coinbase_cloud_api_key.json') as f:
-        d = json.load(f)
-    os.environ['API_KEY'] =d['name']
-    os.environ['API_SECRET'] = d['privateKey']
-client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+if 'API_KEY' in os.environ:
+    client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+else:
+    try:
+        with open('coinbase_cloud_api_key.json') as f:
+            d = json.load(f)
+        os.environ['API_KEY'] =d['name']
+        os.environ['API_SECRET'] = d['privateKey']
+        client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+    except:
+        print('Can not find keys')
 
 class Asset_base:
     # Dict to keep track of all assets and call them by string ticker
