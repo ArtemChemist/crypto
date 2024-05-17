@@ -93,7 +93,12 @@ class Asset_train(Asset_base):
         self.save_history_to_local()
 
     def read_history_from_local(self):
+        # Read csv, parse dates
         incoming_data= pd.read_csv(self.local_path, sep='\t', index_col=0, parse_dates=True)
+
+        #Becasue we had dates, columns are now read as strings, so we convert data back to floats
+        for col in incoming_data.columns:
+            incoming_data[col] = incoming_data[col].astype(float)
         self.update_history_from_df(incoming_data)
 
     def save_history_to_local(self):
