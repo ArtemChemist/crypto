@@ -27,11 +27,6 @@ class Portfolio_base:
         my_columns = [u'change', u'note']
         self.transactions  = pd.DataFrame(index=idx, columns=my_columns)
         self.value = pd.DataFrame(columns = ['value'], index = pd.DatetimeIndex([], name = 'date_time'))
-        self.orig_date = origination_date
-        self.update_transactions(transaction_date = origination_date,
-                                ticker = 'USD',
-                                qty = initial_deposit,
-                                note = 'Initial deposit')
 
 
 class Portfolio_lambda(Portfolio_base):
@@ -77,10 +72,13 @@ class Portfolio_train(Portfolio_base):
 
     def __init__(self, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
         super().__init__(origination_date, initial_deposit)
+        self.orig_date = origination_date
+        self.update_transactions(transaction_date = origination_date,
+                                ticker = 'USD',
+                                qty = initial_deposit,
+                                note = 'Initial deposit')
 
 
-    def update_transactions(self, ticker:str, qty:float, transaction_date = tmpstemp.today(), note = ''):
-        self.transactions.loc[(transaction_date,ticker),:] = [qty, note]
 
     def get_hist_positions(self, on_date = tmpstemp.today()):
         '''
