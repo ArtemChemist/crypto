@@ -20,7 +20,7 @@ else:
         print('Can not find keys')
 
 
-class Portfolio:
+class Portfolio_base:
     def __init__(self, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
         idx  = pd.MultiIndex(levels=[[],[]],
                           codes=[[],[]],
@@ -33,6 +33,51 @@ class Portfolio:
                                 ticker = 'USD',
                                 qty = initial_deposit,
                                 note = 'Initial deposit')
+
+
+class Portfolio_lambda(Portfolio_base):
+
+    def __init__(self, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
+        super().__init__(origination_date, initial_deposit)
+
+    
+    def get_spot(self, coin):
+        try:
+            product = f'{coin}-USD'
+            if product in pd.DataFrame(client.get_products()['products'])['product_id'].values:
+                return float(client.get_product(product)['price'])
+            elif coin in ['USD', 'USDC']:
+                return 1
+            else:
+                pass
+        except Exception as e:
+            print(e)
+
+    def get_current_postions(self, on_date = tmpstemp.today(), update = False):
+        '''
+        Returns portfolio composition from Coinbase account
+        '''
+       
+        positions = {}
+        for account in client.get_accounts()['accounts']:
+            positions[account['name'].split(' ')[0]] = float(account['available_balance']['value'])
+
+        positions = pd.DataFrame(columns = ['position_size'], data = positions.values(), index = pd.Index(positions.keys(), name = 'ticker'))
+        positions['position_value'] = positions.index.to_series().apply(lambda x: self.get_spot(x) if positions['position_size'].loc[x]>0 else 0)  #
+        positions['position_value'] = positions['position_value']*positions['position_size']
+        total_value = positions['position_value'].sum()
+        try:
+            positions['allocation'] = positions['position_value']/total_value
+        except Exception:
+            print('Error occured')
+            pass
+        
+        return positions
+
+class Portfolio_train(Portfolio_base):
+
+    def __init__(self, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
+        super().__init__(origination_date, initial_deposit)
 
 
     def update_transactions(self, ticker:str, qty:float, transaction_date = tmpstemp.today(), note = ''):
@@ -118,3 +163,12 @@ class Portfolio:
         self.value.sort_index(inplace=True)
 
     
+    
+class Portfolio(Portfolio_base):
+    
+    def __new__(cls, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
+        key_word = os.environ['MY_ENVIRONMENT']
+        if key_word == 'prod':
+            return Portfolio_lambda(origination_date, initial_deposit)
+        if key_word == 'training':
+            return Portfolio_train(origination_date, initial_deposit)

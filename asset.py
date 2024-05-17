@@ -73,7 +73,6 @@ class Asset_lambda(Asset_base):
     def __init__(self, ticker):
         super().__init__(ticker)
 
-
 class Asset_train(Asset_base):
 
     def __init__(self, ticker):
