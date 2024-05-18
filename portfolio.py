@@ -78,7 +78,8 @@ class Portfolio_train(Portfolio_base):
                                 qty = initial_deposit,
                                 note = 'Initial deposit')
 
-
+    def update_transactions(self, ticker:str, qty:float, transaction_date = tmpstemp.today(), note = ''):
+        self.transactions.loc[(transaction_date,ticker),:] = [qty, note]
 
     def get_hist_positions(self, on_date = tmpstemp.today()):
         '''
