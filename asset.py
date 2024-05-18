@@ -77,6 +77,49 @@ class Asset_lambda(Asset_base):
     def __init__(self, ticker):
         super().__init__(ticker)
 
+    def latest_price(self):
+        '''
+        Returns spot price for Asset-USD pair, checks if this pair is traidable
+        '''
+        try:
+            product = f'{self.ticker}-USD'
+            if product in pd.DataFrame(client.get_products()['products'])['product_id'].values:
+                return float(client.get_product(product)['price'])
+            elif self.ticker in ['USD', 'USDC']:
+                return 1
+            else:
+                pass
+        except Exception as e:
+            print(e)
+
+    def price_on_date(self, on_date):
+        '''
+        Returns the prce on the date that is the closest to the supplied date
+        If no date supplied, returns latest price
+        '''
+        if on_date:
+            on_date_unix = (on_date.date - tmpstemp("1970-01-01")) // tmpdelta('1s')
+            next_date = on_date + tmpdelta(days=1)
+            next_date_unix = (next_date - tmpstemp("1970-01-01")) // tmpdelta('1s')
+
+            exchange_response = client.get_candles(f'{self.ticker}-USD', on_date_unix, next_date_unix, 'ONE_DAY')
+            incoming_data= pd.DataFrame( data = exchange_response['candles']) 
+            incoming_data.columns = [ 'date_time', 'low', 'high', 'open', 'close', 'volume']
+            incoming_data['date_time']= incoming_data['date_time'].apply(lambda x: tmpstemp.fromtimestamp(int(x)))
+            incoming_data.set_index('date_time', inplace=True)
+            return float(incoming_data['close'].iloc[-1])
+        else:
+            try:
+                product = f'{self.ticker}-USD'
+                if product in pd.DataFrame(client.get_products()['products'])['product_id'].values:
+                    return float(client.get_product(product)['price'])
+                elif self.ticker in ['USD', 'USDC']:
+                    return 1
+                else:
+                    pass
+            except Exception as e:
+                print(e)
+
 class Asset_train(Asset_base):
 
     def __init__(self, ticker):
