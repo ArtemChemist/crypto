@@ -1,17 +1,21 @@
 import pandas as pd
 from pandas import Timestamp as tmpstemp
 from pandas import Timedelta as tmpdelta
-import numpy as np
 import os
 import json
 
 from coinbase.rest import RESTClient
-if os.environ['USERNAME'] in ['art_usr', 'Artem']:
-    with open('coinbase_cloud_api_key.json') as f:
-        d = json.load(f)
-    os.environ['API_KEY'] =d['name']
-    os.environ['API_SECRET'] = d['privateKey']
-client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+if 'API_KEY' in os.environ:
+    client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+else:
+    try:
+        with open('coinbase_cloud_api_key.json') as f:
+            d = json.load(f)
+        os.environ['API_KEY'] =d['name']
+        os.environ['API_SECRET'] = d['privateKey']
+        client = RESTClient(api_key = os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+    except:
+        print('Can not find keys')
 
 class Asset_base:
     # Dict to keep track of all assets and call them by string ticker
@@ -73,7 +77,6 @@ class Asset_lambda(Asset_base):
     def __init__(self, ticker):
         super().__init__(ticker)
 
-
 class Asset_train(Asset_base):
 
     def __init__(self, ticker):
@@ -94,7 +97,12 @@ class Asset_train(Asset_base):
         self.save_history_to_local()
 
     def read_history_from_local(self):
+        # Read csv, parse dates
         incoming_data= pd.read_csv(self.local_path, sep='\t', index_col=0, parse_dates=True)
+
+        #Becasue we had dates, columns are now read as strings, so we convert data back to floats
+        for col in incoming_data.columns:
+            incoming_data[col] = incoming_data[col].astype(float)
         self.update_history_from_df(incoming_data)
 
     def save_history_to_local(self):

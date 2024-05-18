@@ -12,5 +12,5 @@ def lambda_handler(event, context):
 
 event_test = {'key1':'one', 'key2':'two'}
 context = 'QWERTY'
-
+os.environ['MY_ENVIRONMENT'] = 'prod'
 lambda_handler(event_test, context)
