@@ -1,8 +1,10 @@
 import pandas as pd
 from pandas import Timestamp as tmpstemp
 from pandas import Timedelta as tmpdelta
+import numpy as np
 import os
 import json
+from asset import Asset
 from asset import Asset
 
 from coinbase.rest import RESTClient
@@ -169,7 +171,6 @@ class Portfolio_train(Portfolio_base):
             date_to_add = date_to_add - tmpdelta(days=1)
         self.value.sort_index(inplace=True)
 
-    
     
 class Portfolio(Portfolio_base):
     
