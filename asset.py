@@ -159,7 +159,11 @@ class Asset_train(Asset_base):
     def price_on_date(self, on_date = tmpstemp.today):
         '''
         Returns the prce on the date that is the closest to the supplied date
+        If no date (or None) supplied, returns closest to today's date
         '''
+        if on_date == None:
+            on_date = tmpstemp.today
+            
         matches = self.history.index.get_indexer([on_date], method='nearest')
         matched_date = self.history.index[matches[0]]
         if ((matched_date - on_date) > tmpdelta(days=1))  | ((on_date - matched_date) > tmpdelta(days=1)):
