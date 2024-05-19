@@ -1,10 +1,8 @@
 import pandas as pd
 from pandas import Timestamp as tmpstemp
 from pandas import Timedelta as tmpdelta
-import numpy as np
 import os
 import json
-from asset import Asset
 from asset import Asset
 
 from coinbase.rest import RESTClient
@@ -78,7 +76,7 @@ class Portfolio_lambda(Portfolio_base):
 
     def get_current_postions(self):
         '''
-        Returns portfolio composition on the specified date, as a pandas df
+        Returns the latest avalable portfolio composition, as a pandas df
         Includs position size, value in USD and allocation
         '''
         # Filter the df with this mask, group by ticker
@@ -107,6 +105,24 @@ class Portfolio_lambda(Portfolio_base):
             pass
         
         return positions
+    
+    def get_hist_positions(self, on_date):
+        '''
+        Returns portfolio composition, as a pandas df
+        Includs position size, value in USD and allocation
+        If date is provide, returns composition for that date,
+        If date is not provided, returns the latest avaliable on Coinbase
+        '''
+        if on_date: 
+            return super().get_hist_positions(on_date)
+        else:
+            return self.get_current_postions()
+
+    
+    def execute_suggestions(self, suggestions):
+        for ticker in suggestions.index:
+            print(f"For {str(ticker)}, change of {round(suggestions['change_in_USD_value'].loc[ticker], 1)} USD suggested")
+
 
 class Portfolio_train(Portfolio_base):
 
@@ -140,26 +156,11 @@ class Portfolio_train(Portfolio_base):
         except Exception as e:
             print(e)
 
-    def get_current_postions(self, on_date = tmpstemp.today(), update = False):
+    def get_current_postions(self):
         '''
-        Returns portfolio composition from Coinbase account
+        Returns portfolio composition on today's date
         '''
-       
-        positions = {}
-        for account in client.get_accounts()['accounts']:
-            positions[account['name'].split(' ')[0]] = float(account['available_balance']['value'])
-
-        positions = pd.DataFrame(columns = ['position_size'], data = positions.values(), index = pd.Index(positions.keys(), name = 'ticker'))
-        positions['position_value'] = positions.index.to_series().apply(lambda x: self.get_spot(x) if positions['position_size'].loc[x]>0 else 0)  #
-        positions['position_value'] = positions['position_value']*positions['position_size']
-        total_value = positions['position_value'].sum()
-        try:
-            positions['allocation'] = positions['position_value']/total_value
-        except Exception:
-            print('Error occured')
-            pass
-        
-        return positions
+        return self.get_hist_positions()
     
     def update_value(self, up_to = tmpstemp.fromisoformat('2023-11-30')):
         #self.value.drop(self.value.index, inplace=True)
@@ -171,6 +172,19 @@ class Portfolio_train(Portfolio_base):
             date_to_add = date_to_add - tmpdelta(days=1)
         self.value.sort_index(inplace=True)
 
+    def execute_suggestions(self, suggestions: pd.DataFrame, exec_date):
+        '''
+        Executes transactions suggested, ASSUMES PORTFOLIO IS ONLY 1 ASSET AND USD
+        Parameters:
+        suggestions: dafaframe with tickers as index and suggested changes in 'change_in_size' column
+        exec_date: date when the transactions are executed. Can be any date
+
+        '''
+        for ticker in suggestions.index:
+            self.update_transactions(ticker = str(ticker),
+                                        qty =  suggestions['change_in_size'].loc[ticker],
+                                        transaction_date = exec_date,
+                                        note =  suggestions['note'].loc[ticker])
     
 class Portfolio(Portfolio_base):
     
