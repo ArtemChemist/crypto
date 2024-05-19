@@ -105,6 +105,11 @@ class Portfolio_lambda(Portfolio_base):
             pass
         
         return positions
+    
+    def execute_suggestions(suggestions):
+        for ticker in suggestions.index:
+            print(f"For {str(ticker)}, change of {suggestions['change_in_size'].loc[ticker]} suggested")
+
 
 class Portfolio_train(Portfolio_base):
 
@@ -169,7 +174,18 @@ class Portfolio_train(Portfolio_base):
             date_to_add = date_to_add - tmpdelta(days=1)
         self.value.sort_index(inplace=True)
 
-    
+    def execute_suggestions(self, suggestions: pd.DataFrame, exec_date):
+        '''
+        Executes transactions suggested
+        Parameters:
+        suggestions: dafaframe with tickers as index and suggested changes in 'change_in_size' column
+        exec_date: date when the transactions are executed. Can by any date
+        '''
+        for ticker in suggestions.index:
+            self.update_transactions(ticker = str(ticker),
+                                        qty =  suggestions['change_in_size'].loc[ticker],
+                                        transaction_date = exec_date,
+                                        note =  suggestions['note'].loc[ticker])
     
 class Portfolio(Portfolio_base):
     
