@@ -1,8 +1,12 @@
 from portfolio import Portfolio
+from asset import Asset
 import os
 
 def lambda_handler(event, context):
-    rebal_portfolio = Portfolio(['BTC', 'ETH', 'USDT'])
+    BTC = Asset('BTC')
+    ETH = Asset('ETH')
+    USDT = Asset('USDT')
+    rebal_portfolio = Portfolio({'BTC':0, 'ETH':0, 'USDT':0})
 
     positions = rebal_portfolio.get_current_postions()
     for ticker in positions.index:

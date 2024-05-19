@@ -92,7 +92,7 @@ class Asset_lambda(Asset_base):
         except Exception as e:
             print(e)
 
-    def price_on_date(self, on_date):
+    def price_on_date(self, on_date = None):
         '''
         Returns the prce on the date that is the closest to the supplied date
         If no date supplied, returns latest price

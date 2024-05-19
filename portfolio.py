@@ -20,7 +20,7 @@ else:
 
 
 class Portfolio_base:
-    def __init__(self, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
+    def __init__(self):
         idx  = pd.MultiIndex(levels=[[],[]],
                           codes=[[],[]],
                           names=[u'date_time', u'ticker'])
@@ -65,12 +65,12 @@ class Portfolio_base:
 
 class Portfolio_lambda(Portfolio_base):
 
-    def __init__(self, tickers:list):
-        super().__init__(origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0)
+    def __init__(self, assets:dict):
+        super().__init__()
         for account in client.get_accounts()['accounts']:
             ticker = account['name'].split(' ')[0]
             qty = float(account['available_balance']['value'])
-            if ticker in tickers:
+            if ticker in assets.keys():
                 self.add_new_position(ticker, qty)
 
 
@@ -90,7 +90,7 @@ class Portfolio_lambda(Portfolio_base):
             ticker = account['name'].split(' ')[0]
             qty = float(account['available_balance']['value'])
             if ticker in positions.index:
-                positions['position_size'].loc[ticker] = qty
+                positions.loc[ticker, 'position_size'] = qty
 
         # Add the value in USD by multiplying on the asset price at this date
         positions['position_value'] = positions.index.to_series().apply(
@@ -108,13 +108,14 @@ class Portfolio_lambda(Portfolio_base):
 
 class Portfolio_train(Portfolio_base):
 
-    def __init__(self, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
-        super().__init__(origination_date, initial_deposit)
+    def __init__(self, assets:dict, origination_date = tmpstemp.fromisoformat('2000-01-01') ):
+        super().__init__()
         self.orig_date = origination_date
-        self.update_transactions(transaction_date = origination_date,
-                                ticker = 'USD',
-                                qty = initial_deposit,
-                                note = 'Initial deposit')
+        for asset in assets.items():
+            self.update_transactions(transaction_date = self.orig_date,
+                                    ticker = asset[0],
+                                    qty = asset[1],
+                                    note = 'Initial deposit')
 
     def get_hist_value(self, on_date = tmpstemp.today(), update = False):
         if update:
@@ -172,9 +173,9 @@ class Portfolio_train(Portfolio_base):
     
 class Portfolio(Portfolio_base):
     
-    def __new__(cls, origination_date = tmpstemp.fromisoformat('2000-01-01'), initial_deposit = 0):
+    def __new__(cls, assets:dict, origination_date = tmpstemp.fromisoformat('2000-01-01')):
         key_word = os.environ['MY_ENVIRONMENT']
         if key_word == 'prod':
-            return Portfolio_lambda()
+            return Portfolio_lambda(assets = assets)
         if key_word == 'training':
-            return Portfolio_train(origination_date, initial_deposit)
+            return Portfolio_train(assets = assets, origination_date = origination_date)
