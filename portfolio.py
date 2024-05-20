@@ -4,6 +4,7 @@ from pandas import Timedelta as tmpdelta
 import os
 import json
 from asset import Asset
+from math import copysign
 
 from coinbase.rest import RESTClient
 if 'API_KEY' in os.environ:
@@ -172,7 +173,7 @@ class Portfolio_train(Portfolio_base):
             date_to_add = date_to_add - tmpdelta(days=1)
         self.value.sort_index(inplace=True)
 
-    def execute_suggestions(self, suggestions: pd.DataFrame, exec_date):
+    def execute_suggestions(self, sggst_df: pd.DataFrame, exec_date):
         '''
         Executes transactions suggested, ASSUMES PORTFOLIO IS ONLY 1 ASSET AND USD
         Parameters:
@@ -180,11 +181,78 @@ class Portfolio_train(Portfolio_base):
         exec_date: date when the transactions are executed. Can be any date
 
         '''
-        for ticker in suggestions.index:
-            self.update_transactions(ticker = str(ticker),
-                                        qty =  suggestions['change_in_size'].loc[ticker],
-                                        transaction_date = exec_date,
-                                        note =  suggestions['note'].loc[ticker])
+        tradable_pairs = pd.DataFrame(client.get_products()['products'])['product_id'].values
+        while max(abs(sggst_df['change_in_USD_value'])) >=10:
+
+            sggst_df.sort_values(by='change_in_USD_value', ascending=False, inplace=True)
+
+            # Figure out what pair we are traiding
+            if f'{sggst_df.index[0]}-{sggst_df.index[-1]}' in tradable_pairs:
+                first_ass = sggst_df.index[0]
+                second_ass = sggst_df.index[-1]
+            elif f'{sggst_df.index[-1]}-{sggst_df.index[0]}' in tradable_pairs:
+                first_ass = sggst_df.index[-1]
+                second_ass = sggst_df.index[0]
+            else:
+                print('Untradable pair')
+                trade_pair  = None
+            trade_pair = f'{first_ass}-{second_ass}'
+            # Figure out if we are sellign or bying
+            if sggst_df['change_in_USD_value'].loc[first_ass] >=0:
+                trans_type = 'buy'
+            else:
+                trans_type  = 'sell'
+
+            # Figure out how much we are trading, what asset we will sell completely, what willl remain
+            if abs(sggst_df['change_in_USD_value'].loc[first_ass]) >= abs(sggst_df['change_in_USD_value'].loc[second_ass]):
+                value = abs(sggst_df['change_in_USD_value'].loc[second_ass])
+                to_drop = second_ass
+                to_change = first_ass
+            else:
+                value = abs(sggst_df['change_in_USD_value'].loc[first_ass])
+                to_drop = first_ass
+                to_change = second_ass
+
+            # Size of the change is always int eh first asset of the pair
+            size = value/sggst_df['on_date_price'].loc[first_ass]
+
+            #This is where transaction happens
+            print(f'{trans_type} {size} of {trade_pair} for {value} and drop {to_drop}')
+            # In local we do that in two transactions
+            # the code below is just dealing with this fact
+            curr_size_delta = sggst_df['change_in_size'].loc[first_ass]
+            size_1 = -1 * copysign(size, curr_size_delta)
+            print(f"Updating {first_ass} for {size_1}")
+            self.update_transactions(ticker = first_ass,
+                            qty =  size_1 ,
+                            transaction_date = exec_date,
+                            note =  sggst_df['note'].loc[first_ass])
+            
+
+            curr_size_delta = sggst_df['change_in_size'].loc[second_ass]
+            size_2 = value/sggst_df['on_date_price'].loc[second_ass]
+            size_2 = -1 * copysign(size_2, curr_size_delta)
+            print(f"Updating {second_ass} for {size_2}")
+            self.update_transactions(ticker = first_ass,
+                            qty =  size_1 ,
+                            transaction_date = exec_date,
+                            note =  sggst_df['note'].loc[second_ass])
+
+
+            # Drop the asset we used up
+            sggst_df.drop(index = [to_drop], inplace = True)
+
+            # Update delta for size and value of the asset that is not used up
+            # Here we update the suggestion df, to make the right decision on the next iteration
+            curr_val_delta = sggst_df['change_in_USD_value'].loc[to_change]
+            new_val_delta = curr_val_delta - copysign(value, curr_val_delta)
+            sggst_df.loc[to_change, 'change_in_USD_value'] = new_val_delta
+
+            curr_size_delta = sggst_df['change_in_size'].loc[to_change]
+            new_size_delta = curr_size_delta - copysign(size, curr_size_delta)
+            sggst_df.loc[to_change, 'change_in_size'] = new_size_delta
+
+
     
 class Portfolio(Portfolio_base):
     

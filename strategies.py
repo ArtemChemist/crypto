@@ -43,32 +43,32 @@ class LSTM_Strategy(BaseStrategy):
     def __init__(self, model_input_length = 15):
         super().__init__(model_input_length = 15)
 
-    def make_suggestion(self, today, portfolio, risk_rate = 0.02):
+    def make_suggestion(self, on_date, portfolio, risk_rate = 0.02):
         
         asset_to_analyze = Asset.asset_dict['BTC']
         
-        positions = portfolio.get_hist_positions(today)
+        positions = portfolio.get_hist_positions(on_date)
         suggestions = pd.DataFrame(columns = ['change_in_size', 'USD_value', 'note'], index = positions.index)
-        data_to_process = asset_to_analyze.history['close'].loc[today-tmpdelta(days=self.input_span-1):today+tmpdelta(days=1)]
+        data_to_process = asset_to_analyze.history['close'].loc[on_date-tmpdelta(days=self.input_span-1):on_date+tmpdelta(days=1)]
         prediction = self.predict_one(data_to_process)
         prediction = float(prediction['Predicted price'])
 
         # If BTC is predicted to go up - buy it
-        if prediction > float(asset_to_analyze.price_on_date(today)):
+        if prediction > float(asset_to_analyze.price_on_date(on_date)):
             USD_to_spend = risk_rate * positions['position_value'].loc['USD']  # In this strategy, we change position by risk_rate% on every step
             ext_price = USD_to_spend/(1 + self.fees)                    # This is how much will be paid for BTC, extended price
             fees = USD_to_spend - ext_price                            # This is plaform fees
-            BTC_price = asset_to_analyze.history['close'].loc[today]                # BTC price at the time of decision
+            BTC_price = asset_to_analyze.history['close'].loc[on_date]                # BTC price at the time of decision
             BTC_to_buy = ext_price/BTC_price
             suggestions.loc['BTC'] = [BTC_to_buy, ext_price, 'Buy BTC']
             suggestions.loc['USD'] = [-USD_to_spend,-USD_to_spend, 'BTC price w fees']
 
         # If BTC is predicted to go down - sell it
-        if prediction < float(asset_to_analyze.price_on_date(today)):
+        if prediction < float(asset_to_analyze.price_on_date(on_date)):
             BTC_to_spend = risk_rate * positions['position_size'].loc['BTC']  # In this strategy, we change position by risk_rate% on every step
             ext_price = BTC_to_spend/(1 + self.fees)                    # This is how much BTC will be sold, extended price
             fees = BTC_to_spend - ext_price                            # This is plaform fees
-            BTC_price = asset_to_analyze.history['close'].loc[today]                # BTC price at the time of decision
+            BTC_price = asset_to_analyze.history['close'].loc[on_date]                # BTC price at the time of decision
             USD_to_buy = ext_price*BTC_price
             suggestions.loc['BTC'] = [-BTC_to_spend, -BTC_to_spend, 'Sell BTC w fees']
             suggestions.loc['USD'] = [USD_to_buy, USD_to_buy, 'BTC sale']
