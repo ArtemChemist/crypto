@@ -4,7 +4,7 @@ import os
 import pandas as pd
 from strategies import Rebalancing_Strategy
 
-rebalncer = Rebalancing_Strategy(target_allocations = {'USDT':0.2, 'BTC':0.4, 'ETH':0.4})
+rebalncer = Rebalancing_Strategy(target_allocations = {'USDT':0.5, 'BTC':0.2, 'ETH':0.3})
 
 def lambda_handler(event, context):
     BTC = Asset('BTC')

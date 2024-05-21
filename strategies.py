@@ -48,7 +48,7 @@ class LSTM_Strategy(BaseStrategy):
         asset_to_analyze = Asset.asset_dict['BTC']
         
         positions = portfolio.get_hist_positions(on_date)
-        suggestions = pd.DataFrame(columns = ['change_in_size', 'USD_value', 'note'], index = positions.index)
+        suggestions = pd.DataFrame(columns = ['delta_size', 'USD_value', 'note'], index = positions.index)
         data_to_process = asset_to_analyze.history['close'].loc[on_date-tmpdelta(days=self.input_span-1):on_date+tmpdelta(days=1)]
         prediction = self.predict_one(data_to_process)
         prediction = float(prediction['Predicted price'])
@@ -142,8 +142,8 @@ class Rebalancing_Strategy(BaseStrategy):
         suggestion = pd.concat([suggestion, self.target_alloc, on_date_price], axis = 1 )
 
         # Calculate the suggested change as a simple difference between current and target
-        suggestion['change_in_USD_value'] = suggestion['target']*total - suggestion['position_value']
-        suggestion['change_in_size'] = suggestion['change_in_USD_value']/suggestion['on_date_price']
+        suggestion['delta_USD_value'] = suggestion['target']*total - suggestion['position_value']
+        suggestion['delta_size'] = suggestion['delta_USD_value']/suggestion['on_date_price']
 
         # Add note, in case date was None, add current date.
         try:    

@@ -120,9 +120,76 @@ class Portfolio_lambda(Portfolio_base):
             return self.get_current_postions()
 
     
-    def execute_suggestions(self, suggestions):
-        for ticker in suggestions.index:
-            print(f"For {str(ticker)}, change of {round(suggestions['change_in_USD_value'].loc[ticker], 1)} USD suggested")
+    def execute_suggestions(self, sggst_df):
+        print('-----START OF EXECUTION ---------')
+        '''
+        Executes transactions suggested, ASSUMES PORTFOLIO IS ONLY 1 ASSET AND USD
+        Parameters:
+        suggestions: dafaframe with tickers as index and suggested changes in 'delta_size' column
+        exec_date: date when the transactions are executed. Can be any date
+
+        '''
+        while max(abs(sggst_df['delta_USD_value'])) >=10:
+
+            sggst_df.sort_values(by='delta_USD_value', ascending=False, inplace=True)
+            print('Suggested changes')
+            print(sggst_df)
+            # Figure out what pair we are traiding
+            if f'{sggst_df.index[0]}-{sggst_df.index[-1]}' in Asset.tradable_pairs:
+                first_ass = sggst_df.index[0]
+                second_ass = sggst_df.index[-1]
+            elif f'{sggst_df.index[-1]}-{sggst_df.index[0]}' in Asset.tradable_pairs:
+                first_ass = sggst_df.index[-1]
+                second_ass = sggst_df.index[0]
+            else:
+                print('Untradable pair')
+                trade_pair  = None
+            trade_pair = f'{first_ass}-{second_ass}'
+            # Figure out if we are sellign or bying
+            if sggst_df['delta_USD_value'].loc[first_ass] >=0:
+                trans_type = 'buy'
+            else:
+                trans_type  = 'sell'
+
+            # Figure out how much we are trading, what asset we will sell completely, what willl remain
+            if abs(sggst_df['delta_USD_value'].loc[first_ass]) >= abs(sggst_df['delta_USD_value'].loc[second_ass]):
+                value = abs(sggst_df['delta_USD_value'].loc[second_ass])
+                to_drop = second_ass
+                to_change = first_ass
+            else:
+                value = abs(sggst_df['delta_USD_value'].loc[first_ass])
+                to_drop = first_ass
+                to_change = second_ass
+
+            # Size of the change is always in theunits of the first asset of the pair
+            size = value/sggst_df['on_date_price'].loc[first_ass]
+
+            ### START OF LAMBDA-SPECIFIC LOGIC
+
+            if trans_type  == 'sell':
+                print(f'Sell {size} of {trade_pair} for {round(value,1)} USD and drop {to_drop}')
+                #client.market_order_sell()
+            else:
+                print(f'Buy {size} of {trade_pair} for {round(value,1)} USD and drop {to_drop}')
+                #client.market_order_buy()
+
+            ### END OF LAMBDA-SPECIFIC LOGIC
+
+            # Drop the asset we used up from teh suggest_df
+            sggst_df.drop(index = [to_drop], inplace = True)
+
+            # Update delta for size and value of the asset that is not used up
+            # Here we update the suggestion df, to make the right decision on the next iteration
+            curr_val_delta = sggst_df['delta_USD_value'].loc[to_change]
+            new_val_delta = curr_val_delta - copysign(value, curr_val_delta)
+            sggst_df.loc[to_change, 'delta_USD_value'] = new_val_delta
+
+            curr_size_delta = sggst_df['delta_size'].loc[to_change]
+            new_size_delta = curr_size_delta - copysign(size, curr_size_delta)
+            sggst_df.loc[to_change, 'delta_size'] = new_size_delta
+
+
+            print('-----END OF CYCLE ---------')
 
 
 class Portfolio_train(Portfolio_base):
@@ -174,83 +241,94 @@ class Portfolio_train(Portfolio_base):
         self.value.sort_index(inplace=True)
 
     def execute_suggestions(self, sggst_df: pd.DataFrame, exec_date):
+        print('-----START OF EXECUTION ---------')
         '''
         Executes transactions suggested, ASSUMES PORTFOLIO IS ONLY 1 ASSET AND USD
         Parameters:
-        suggestions: dafaframe with tickers as index and suggested changes in 'change_in_size' column
+        suggestions: dafaframe with tickers as index and suggested changes in 'delta_size' column
         exec_date: date when the transactions are executed. Can be any date
 
         '''
-        tradable_pairs = pd.DataFrame(client.get_products()['products'])['product_id'].values
-        while max(abs(sggst_df['change_in_USD_value'])) >=10:
-
-            sggst_df.sort_values(by='change_in_USD_value', ascending=False, inplace=True)
-
+        checking_time = exec_date.replace(hour=23, minute=59, second=0, microsecond=0)
+        while max(abs(sggst_df['delta_USD_value'])) >=10:
+            print('Suggested changes')
+            sggst_df.sort_values(by='delta_USD_value', ascending=False, inplace=True)
+            print(sggst_df)
+            print(f'Current portfolio for {checking_time}')
+            print(self.get_hist_positions(checking_time))
             # Figure out what pair we are traiding
-            if f'{sggst_df.index[0]}-{sggst_df.index[-1]}' in tradable_pairs:
+            if f'{sggst_df.index[0]}-{sggst_df.index[-1]}' in Asset.tradable_pairs:
                 first_ass = sggst_df.index[0]
                 second_ass = sggst_df.index[-1]
-            elif f'{sggst_df.index[-1]}-{sggst_df.index[0]}' in tradable_pairs:
+            elif f'{sggst_df.index[-1]}-{sggst_df.index[0]}' in Asset.tradable_pairs:
                 first_ass = sggst_df.index[-1]
                 second_ass = sggst_df.index[0]
             else:
                 print('Untradable pair')
                 trade_pair  = None
             trade_pair = f'{first_ass}-{second_ass}'
+            print(trade_pair)
             # Figure out if we are sellign or bying
-            if sggst_df['change_in_USD_value'].loc[first_ass] >=0:
+            if sggst_df['delta_USD_value'].loc[first_ass] >=0:
                 trans_type = 'buy'
             else:
                 trans_type  = 'sell'
 
             # Figure out how much we are trading, what asset we will sell completely, what willl remain
-            if abs(sggst_df['change_in_USD_value'].loc[first_ass]) >= abs(sggst_df['change_in_USD_value'].loc[second_ass]):
-                value = abs(sggst_df['change_in_USD_value'].loc[second_ass])
+            if abs(sggst_df['delta_USD_value'].loc[first_ass]) >= abs(sggst_df['delta_USD_value'].loc[second_ass]):
+                value = abs(sggst_df['delta_USD_value'].loc[second_ass])
                 to_drop = second_ass
                 to_change = first_ass
             else:
-                value = abs(sggst_df['change_in_USD_value'].loc[first_ass])
+                value = abs(sggst_df['delta_USD_value'].loc[first_ass])
                 to_drop = first_ass
                 to_change = second_ass
 
-            # Size of the change is always int eh first asset of the pair
+            # Size of the change is always in theunits of the first asset of the pair
             size = value/sggst_df['on_date_price'].loc[first_ass]
 
             #This is where transaction happens
             print(f'{trans_type} {size} of {trade_pair} for {value} and drop {to_drop}')
             # In local we do that in two transactions
-            # the code below is just dealing with this fact
-            curr_size_delta = sggst_df['change_in_size'].loc[first_ass]
-            size_1 = -1 * copysign(size, curr_size_delta)
+            ### ESTART OF LOCAL_SPECIFIC LOGIC
+            curr_size_delta = sggst_df['delta_size'].loc[first_ass]
+            size_1 = copysign(size, curr_size_delta)
             print(f"Updating {first_ass} for {size_1}")
             self.update_transactions(ticker = first_ass,
-                            qty =  size_1 ,
+                            qty =  size_1,
                             transaction_date = exec_date,
                             note =  sggst_df['note'].loc[first_ass])
             
 
-            curr_size_delta = sggst_df['change_in_size'].loc[second_ass]
+            curr_size_delta = sggst_df['delta_size'].loc[second_ass]
             size_2 = value/sggst_df['on_date_price'].loc[second_ass]
-            size_2 = -1 * copysign(size_2, curr_size_delta)
+            size_2 = copysign(size_2, curr_size_delta)
             print(f"Updating {second_ass} for {size_2}")
-            self.update_transactions(ticker = first_ass,
-                            qty =  size_1 ,
+            self.update_transactions(ticker = second_ass,
+                            qty =  size_2 ,
                             transaction_date = exec_date,
                             note =  sggst_df['note'].loc[second_ass])
-
+            print(f'Updated portfolio for {checking_time}')
+            print(self.get_hist_positions(checking_time))
+            # Place the next transactions and a different time to avoid overlap
+            exec_date = exec_date + tmpdelta(seconds=1)
+            ### END OF LOCAL_SPECIFIC LOGIC
 
             # Drop the asset we used up
             sggst_df.drop(index = [to_drop], inplace = True)
 
             # Update delta for size and value of the asset that is not used up
             # Here we update the suggestion df, to make the right decision on the next iteration
-            curr_val_delta = sggst_df['change_in_USD_value'].loc[to_change]
+            curr_val_delta = sggst_df['delta_USD_value'].loc[to_change]
             new_val_delta = curr_val_delta - copysign(value, curr_val_delta)
-            sggst_df.loc[to_change, 'change_in_USD_value'] = new_val_delta
+            sggst_df.loc[to_change, 'delta_USD_value'] = new_val_delta
 
-            curr_size_delta = sggst_df['change_in_size'].loc[to_change]
+            curr_size_delta = sggst_df['delta_size'].loc[to_change]
             new_size_delta = curr_size_delta - copysign(size, curr_size_delta)
-            sggst_df.loc[to_change, 'change_in_size'] = new_size_delta
+            sggst_df.loc[to_change, 'delta_size'] = new_size_delta
+
+
+            print('-----END OF CYCLE ---------')
 
 
     
