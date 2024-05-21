@@ -5,6 +5,7 @@ import os
 import json
 from asset import Asset
 from math import copysign
+import uuid
 
 from coinbase.rest import RESTClient
 if 'API_KEY' in os.environ:
@@ -147,9 +148,9 @@ class Portfolio_lambda(Portfolio_base):
             trade_pair = f'{first_ass}-{second_ass}'
             # Figure out if we are sellign or bying
             if sggst_df['delta_USD_value'].loc[first_ass] >=0:
-                trans_type = 'buy'
+                trans_type = 'BUY'
             else:
-                trans_type  = 'sell'
+                trans_type  = 'SELL'
 
             # Figure out how much we are trading, what asset we will sell completely, what willl remain
             if abs(sggst_df['delta_USD_value'].loc[first_ass]) >= abs(sggst_df['delta_USD_value'].loc[second_ass]):
@@ -162,16 +163,34 @@ class Portfolio_lambda(Portfolio_base):
                 to_change = second_ass
 
             # Size of the change is always in theunits of the first asset of the pair
-            size = value/sggst_df['on_date_price'].loc[first_ass]
+            base_size = value/sggst_df['on_date_price'].loc[first_ass]
+            quote_size = value/sggst_df['on_date_price'].loc[second_ass]
 
             ### START OF LAMBDA-SPECIFIC LOGIC
+            order_id = str(uuid.uuid4())
+            if trans_type  == 'SELL':
+                print(f'Sell {base_size} of {trade_pair} and  drop {to_drop}, id is {order_id }')
 
-            if trans_type  == 'sell':
-                print(f'Sell {size} of {trade_pair} for {round(value,1)} USD and drop {to_drop}')
-                #client.market_order_sell()
+                order = client.market_order_sell(
+                        client_order_id=order_id,
+                        product_id=trade_pair,
+                            base_size=str(base_size)
+                        )
+                fills = client.get_fills(order_id=order_id)
+                print(fills)
+
+
+
             else:
-                print(f'Buy {size} of {trade_pair} for {round(value,1)} USD and drop {to_drop}')
-                #client.market_order_buy()
+                print(f'Buy {quote_size} of {trade_pair} and  drop {to_drop}, id is {order_id }')
+
+                order = client.market_order_buy(
+                        client_order_id=order_id,
+                        product_id=trade_pair,
+                            quote_size=str(quote_size)
+                        )
+                fills = client.get_fills(order_id=order_id)
+                print(fills)
 
             ### END OF LAMBDA-SPECIFIC LOGIC
 
@@ -185,7 +204,7 @@ class Portfolio_lambda(Portfolio_base):
             sggst_df.loc[to_change, 'delta_USD_value'] = new_val_delta
 
             curr_size_delta = sggst_df['delta_size'].loc[to_change]
-            new_size_delta = curr_size_delta - copysign(size, curr_size_delta)
+            new_size_delta = curr_size_delta - copysign(base_size, curr_size_delta)
             sggst_df.loc[to_change, 'delta_size'] = new_size_delta
 
 
