@@ -163,23 +163,22 @@ class Portfolio_lambda(Portfolio_base):
                 to_change = second_ass
 
             # Size of the change is always in theunits of the first asset of the pair
-            base_size = value/sggst_df['on_date_price'].loc[first_ass]
-            quote_size = value/sggst_df['on_date_price'].loc[second_ass]
+            base_precision = len(client.get_product('ETH-USDT')['base_increment'].split('.')[1])
+            base_size = round(value/sggst_df['on_date_price'].loc[first_ass], base_precision)
+
+            quote_precision = len(client.get_product('ETH-USDT')['quote_increment'].split('.')[1])
+            quote_size = round(value/sggst_df['on_date_price'].loc[second_ass], quote_precision)
 
             ### START OF LAMBDA-SPECIFIC LOGIC
             order_id = str(uuid.uuid4())
-            if trans_type  == 'SELL':
+            if (trans_type  == 'SELL'):
                 print(f'Sell {base_size} of {trade_pair} and  drop {to_drop}, id is {order_id }')
-
                 order = client.market_order_sell(
                         client_order_id=order_id,
                         product_id=trade_pair,
                             base_size=str(base_size)
                         )
-                fills = client.get_fills(order_id=order_id)
-                print(fills)
-
-
+                print(order)
 
             else:
                 print(f'Buy {quote_size} of {trade_pair} and  drop {to_drop}, id is {order_id }')
@@ -189,8 +188,7 @@ class Portfolio_lambda(Portfolio_base):
                         product_id=trade_pair,
                             quote_size=str(quote_size)
                         )
-                fills = client.get_fills(order_id=order_id)
-                print(fills)
+                print(order)
 
             ### END OF LAMBDA-SPECIFIC LOGIC
 
