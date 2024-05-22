@@ -120,16 +120,17 @@ class Portfolio_lambda(Portfolio_base):
         else:
             return self.get_current_postions()
 
-    
     def execute_suggestions(self, sggst_df):
         print('-----START OF EXECUTION ---------')
         '''
-        Executes transactions suggested, ASSUMES PORTFOLIO IS ONLY 1 ASSET AND USD
+        Executes transactions suggested
         Parameters:
         suggestions: dafaframe with tickers as index and suggested changes in 'delta_size' column
         exec_date: date when the transactions are executed. Can be any date
 
         '''
+        print('Suggested changes')
+        print(sggst_df)
         while max(abs(sggst_df['delta_USD_value'])) >=20:
 
             sggst_df.sort_values(by='delta_USD_value', ascending=False, inplace=True)
@@ -164,9 +165,11 @@ class Portfolio_lambda(Portfolio_base):
 
             # Size of the change is always in theunits of the first asset of the pair
             base_precision = len(client.get_product('ETH-USDT')['base_increment'].split('.')[1])
+            print(f'Base precision {base_precision}')
             base_size = round(value/sggst_df['on_date_price'].loc[first_ass], base_precision)
 
             quote_precision = len(client.get_product('ETH-USDT')['quote_increment'].split('.')[1])
+            print(f'Quote precision {quote_precision}')
             quote_size = round(value/sggst_df['on_date_price'].loc[second_ass], quote_precision)
 
             ### START OF LAMBDA-SPECIFIC LOGIC
