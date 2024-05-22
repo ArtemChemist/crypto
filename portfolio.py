@@ -163,10 +163,10 @@ class Portfolio_lambda(Portfolio_base):
                 to_change = second_ass
 
             # Size of the change is always in theunits of the first asset of the pair
-            base_precision = len(client.get_product('ETH-USDT')['base_increment'].split('.')[1])
+            base_precision = len(client.get_product(trade_pair)['base_increment'].split('.')[1])
             base_size = round(value/sggst_df['on_date_price'].loc[first_ass], base_precision)
 
-            quote_precision = len(client.get_product('ETH-USDT')['quote_increment'].split('.')[1])
+            quote_precision = len(client.get_product(trade_pair)['quote_increment'].split('.')[1])
             quote_size = round(value/sggst_df['on_date_price'].loc[second_ass], quote_precision)
 
             ### START OF LAMBDA-SPECIFIC LOGIC
