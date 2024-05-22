@@ -130,7 +130,7 @@ class Portfolio_lambda(Portfolio_base):
         exec_date: date when the transactions are executed. Can be any date
 
         '''
-        while max(abs(sggst_df['delta_USD_value'])) >=10:
+        while max(abs(sggst_df['delta_USD_value'])) >=20:
 
             sggst_df.sort_values(by='delta_USD_value', ascending=False, inplace=True)
             print('Suggested changes')
@@ -267,7 +267,7 @@ class Portfolio_train(Portfolio_base):
 
         '''
         checking_time = exec_date.replace(hour=23, minute=59, second=0, microsecond=0)
-        while max(abs(sggst_df['delta_USD_value'])) >=10:
+        while max(abs(sggst_df['delta_USD_value'])) >=20:
             print('Suggested changes')
             sggst_df.sort_values(by='delta_USD_value', ascending=False, inplace=True)
             print(sggst_df)
