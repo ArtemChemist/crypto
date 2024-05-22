@@ -20,7 +20,8 @@ else:
 class Asset_base:
     # Dict to keep track of all assets and call them by string ticker
     asset_dict = {}
-
+    tradable_pairs = pd.DataFrame(client.get_products()['products'])['product_id'].values
+    
     @classmethod
     def make_USD(cls):
         '''
