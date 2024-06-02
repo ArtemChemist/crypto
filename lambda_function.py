@@ -15,7 +15,8 @@ def lambda_handler(event, context):
 
     rebal_suggest = rebalncer.make_suggestion(rebal_portfolio)
     rebal_portfolio.execute_suggestions(rebal_suggest)
-
+    print('-'*30)
+    print('Final portfolio allocations:')
     positions = rebal_portfolio.get_current_postions()
     for ticker in positions.index:
         alloc = positions['allocation'].loc[ticker] *100

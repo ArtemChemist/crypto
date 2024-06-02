@@ -137,13 +137,13 @@ class Portfolio_lambda(Portfolio_base):
 
         '''
         print('Suggested changes')
-        print(sggst_df)
+        print(sggst_df[['position_value','delta_USD_value']])
         while max(abs(sggst_df['delta_USD_value'])) >=20:
 
             sggst_df.sort_values(by='delta_USD_value', ascending=False, inplace=True)
             print('Suggested changes')
-            print(sggst_df)
-            # Figure out what pair we are traiding
+            print(sggst_df[['position_value','delta_USD_value']])
+            # Figure out what pair we are traiding]
             if f'{sggst_df.index[0]}-{sggst_df.index[-1]}' in Asset.tradable_pairs:
                 first_ass = sggst_df.index[0]
                 second_ass = sggst_df.index[-1]
