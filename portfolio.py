@@ -95,15 +95,22 @@ class Portfolio_lambda(Portfolio_base):
                 positions.loc[ticker, 'position_size'] = qty
 
         # Add the value in USD by multiplying on the asset price at this date
-        positions['position_value'] = positions.index.to_series().apply(
-                                                lambda x: Asset.asset_dict[str(x)].price_on_date()
-                                                )
-        positions['position_value'] = positions['position_value']*positions['position_size']
-        total_value = positions['position_value'].sum()
+        try:
+            positions['position_value'] = positions.index.to_series().apply(
+                                                    lambda x: Asset.asset_dict[str(x)].price_on_date()
+                                                    )
+            positions['position_value'] = positions['position_value']*positions['position_size']
+            total_value = positions['position_value'].sum()
+        except Exception as e:
+            print('Error in USD value calucaltion occured')
+            pass
+
+        # Add the allocations by dividing asset dollar value by total portfolio value
         try:
             positions['allocation'] = positions['position_value']/total_value
-        except Exception:
-            print('Error occured')
+        except Exception as e:
+            print('Error in allocation calucaltion occured')
+            print(e)
             pass
         
         return positions
@@ -120,22 +127,23 @@ class Portfolio_lambda(Portfolio_base):
         else:
             return self.get_current_postions()
 
-    
     def execute_suggestions(self, sggst_df):
         print('-----START OF EXECUTION ---------')
         '''
-        Executes transactions suggested, ASSUMES PORTFOLIO IS ONLY 1 ASSET AND USD
+        Executes transactions suggested
         Parameters:
         suggestions: dafaframe with tickers as index and suggested changes in 'delta_size' column
         exec_date: date when the transactions are executed. Can be any date
 
         '''
+        print('Suggested changes')
+        print(sggst_df[['position_value','delta_USD_value']])
         while max(abs(sggst_df['delta_USD_value'])) >=20:
 
             sggst_df.sort_values(by='delta_USD_value', ascending=False, inplace=True)
             print('Suggested changes')
-            print(sggst_df)
-            # Figure out what pair we are traiding
+            print(sggst_df[['position_value','delta_USD_value']])
+            # Figure out what pair we are traiding]
             if f'{sggst_df.index[0]}-{sggst_df.index[-1]}' in Asset.tradable_pairs:
                 first_ass = sggst_df.index[0]
                 second_ass = sggst_df.index[-1]

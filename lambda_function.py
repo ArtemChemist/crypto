@@ -3,8 +3,9 @@ from asset import Asset
 import os
 import pandas as pd
 from strategies import Rebalancing_Strategy
+os.environ['MY_ENVIRONMENT'] = 'prod'
 
-rebalncer = Rebalancing_Strategy(target_allocations = {'USDT':0.39, 'BTC':0.41, 'ETH':0.20})
+rebalncer = Rebalancing_Strategy(target_allocations = {'USDT':0.30, 'BTC':0.45, 'ETH':0.25})
 
 def lambda_handler(event, context):
     BTC = Asset('BTC')
@@ -14,7 +15,8 @@ def lambda_handler(event, context):
 
     rebal_suggest = rebalncer.make_suggestion(rebal_portfolio)
     rebal_portfolio.execute_suggestions(rebal_suggest)
-
+    print('-'*30)
+    print('Final portfolio allocations:')
     positions = rebal_portfolio.get_current_postions()
     for ticker in positions.index:
         alloc = positions['allocation'].loc[ticker] *100
@@ -22,5 +24,5 @@ def lambda_handler(event, context):
 
 event_test = {'key1':'one', 'key2':'two'}
 context = 'QWERTY'
-os.environ['MY_ENVIRONMENT'] = 'prod'
+
 lambda_handler(event_test, context)
