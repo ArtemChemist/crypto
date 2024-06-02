@@ -90,7 +90,7 @@ class Asset_lambda(Asset_base):
                     price = float(client.get_product(product)['price'])
                 except:
                     print(f'Error trying to get latest price for{product}' )
-                    price = -1
+                    price = False
                 return price
             elif self.ticker in ['USD', 'USDC']:
                 return 1

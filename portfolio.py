@@ -95,15 +95,22 @@ class Portfolio_lambda(Portfolio_base):
                 positions.loc[ticker, 'position_size'] = qty
 
         # Add the value in USD by multiplying on the asset price at this date
-        positions['position_value'] = positions.index.to_series().apply(
-                                                lambda x: Asset.asset_dict[str(x)].price_on_date()
-                                                )
-        positions['position_value'] = positions['position_value']*positions['position_size']
-        total_value = positions['position_value'].sum()
+        try:
+            positions['position_value'] = positions.index.to_series().apply(
+                                                    lambda x: Asset.asset_dict[str(x)].price_on_date()
+                                                    )
+            positions['position_value'] = positions['position_value']*positions['position_size']
+            total_value = positions['position_value'].sum()
+        except Exception as e:
+            print('Error in USD value calucaltion occured')
+            pass
+
+        # Add the allocations by dividing asset dollar value by total portfolio value
         try:
             positions['allocation'] = positions['position_value']/total_value
-        except Exception:
-            print('Error occured')
+        except Exception as e:
+            print('Error in allocation calucaltion occured')
+            print(e)
             pass
         
         return positions
