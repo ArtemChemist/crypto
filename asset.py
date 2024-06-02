@@ -84,11 +84,18 @@ class Asset_lambda(Asset_base):
         '''
         try:
             product = f'{self.ticker}-USD'
-            if product in pd.DataFrame(client.get_products()['products'])['product_id'].values:
-                return float(client.get_product(product)['price'])
+            price = -1
+            if product in Asset_lambda.tradable_pairs:
+                try:
+                    price = float(client.get_product(product)['price'])
+                except:
+                    print(f'Error trying to get latest price for{product}' )
+                    price = -1
+                return price
             elif self.ticker in ['USD', 'USDC']:
                 return 1
             else:
+                print(f'Unknown product: {product}' )
                 pass
         except Exception as e:
             print(e)
@@ -110,16 +117,7 @@ class Asset_lambda(Asset_base):
             incoming_data.set_index('date_time', inplace=True)
             return float(incoming_data['close'].iloc[-1])
         else:
-            try:
-                product = f'{self.ticker}-USD'
-                if product in pd.DataFrame(client.get_products()['products'])['product_id'].values:
-                    return float(client.get_product(product)['price'])
-                elif self.ticker in ['USD', 'USDC']:
-                    return 1
-                else:
-                    pass
-            except Exception as e:
-                print(e)
+            return self.latest_price()
 
 class Asset_train(Asset_base):
 
